@@ -397,6 +397,55 @@ class MigrationManager:
             "updated_at": "TEXT",
         })
 
+        self.db.execute("""
+        CREATE TABLE IF NOT EXISTS producteurs(
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            nom TEXT NOT NULL,
+
+            forme_juridique TEXT,
+
+            adresse TEXT,
+
+            postal_code TEXT,
+
+            city TEXT,
+
+            siret TEXT,
+
+            ape TEXT,
+
+            licence TEXT,
+
+            tva TEXT,
+
+            iban TEXT,
+
+            bic TEXT,
+
+            representant TEXT,
+
+            fonction TEXT,
+
+            logo_path TEXT,
+
+            site_internet TEXT,
+
+            email TEXT,
+
+            phone TEXT,
+
+            notes TEXT,
+
+            actif INTEGER DEFAULT 0,
+
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+
+            updated_at TEXT
+        )
+        """)
+
     def _ensure_columns(self, table, columns):
         existing = {
             row["name"]
