@@ -40,7 +40,10 @@ class OrganizationDialog(QDialog):
         self.phone = QLineEdit()
         self.iban = QLineEdit()
         self.bic = QLineEdit()
+        self.tva = QLineEdit()
         self.president = QLineEdit()
+        self.fonction = QLineEdit()
+        self.site_internet = QLineEdit()
         self.notes = QTextEdit()
         self.notes.setFixedHeight(90)
 
@@ -52,11 +55,14 @@ class OrganizationDialog(QDialog):
         form.addRow("SIRET", self.siret)
         form.addRow("Code APE", self.ape)
         form.addRow("Licence", self.licence)
+        form.addRow("TVA intracommunautaire", self.tva)
         form.addRow("Email", self.email)
         form.addRow("Telephone", self.phone)
+        form.addRow("Site internet", self.site_internet)
         form.addRow("IBAN", self.iban)
         form.addRow("BIC", self.bic)
-        form.addRow("President", self.president)
+        form.addRow("Represente par", self.president)
+        form.addRow("Fonction", self.fonction)
         form.addRow("Notes", self.notes)
 
         layout.addLayout(form)
@@ -95,7 +101,10 @@ class OrganizationDialog(QDialog):
             phone=self.phone.text().strip(),
             iban=self.iban.text().strip(),
             bic=self.bic.text().strip(),
+            tva=self.tva.text().strip(),
             president=self.president.text().strip(),
+            fonction=self.fonction.text().strip(),
+            site_internet=self.site_internet.text().strip(),
             notes=self.notes.toPlainText().strip(),
             created_at=self._source_organization.created_at if self._source_organization else None,
         )
@@ -115,5 +124,8 @@ class OrganizationDialog(QDialog):
         self.phone.setText(organization.phone or "")
         self.iban.setText(organization.iban or "")
         self.bic.setText(organization.bic or "")
+        self.tva.setText(organization.tva or "")
         self.president.setText(organization.president or "")
+        self.fonction.setText(organization.fonction or "")
+        self.site_internet.setText(organization.site_internet or "")
         self.notes.setPlainText(organization.notes or "")

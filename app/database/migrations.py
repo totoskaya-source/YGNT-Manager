@@ -145,6 +145,12 @@ class MigrationManager:
         )
         """)
 
+        self._ensure_columns("organizations", {
+            "tva": "TEXT",
+            "fonction": "TEXT",
+            "site_internet": "TEXT",
+        })
+
         self.db.execute("""
         CREATE TABLE IF NOT EXISTS contracts(
 
@@ -284,6 +290,24 @@ class MigrationManager:
             "organisateur_tva": "TEXT",
             "organisateur_representant": "TEXT",
             "organisateur_fonction": "TEXT",
+            "organisateur_iban": "TEXT",
+            "organisateur_bic": "TEXT",
+            "organisateur_site_internet": "TEXT",
+            "organisateur_notes": "TEXT",
+            "artiste_nom": "TEXT",
+            "artiste_adresse": "TEXT",
+            "artiste_postal_code": "TEXT",
+            "artiste_city": "TEXT",
+            "artiste_phone": "TEXT",
+            "artiste_email": "TEXT",
+            "artiste_siren": "TEXT",
+            "artiste_siret": "TEXT",
+            "artiste_ape": "TEXT",
+            "artiste_licence": "TEXT",
+            "artiste_iban": "TEXT",
+            "artiste_bic": "TEXT",
+            "artiste_social_number": "TEXT",
+            "artiste_notes": "TEXT",
             "spectacle_nom": "TEXT",
             "spectacle_duree": "TEXT",
             "prestation_date": "TEXT",

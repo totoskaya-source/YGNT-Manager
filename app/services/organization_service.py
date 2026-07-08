@@ -56,7 +56,10 @@ class OrganizationService:
         organization.phone = organization.phone.strip()
         organization.iban = organization.iban.strip()
         organization.bic = organization.bic.strip()
+        organization.tva = organization.tva.strip()
         organization.president = organization.president.strip()
+        organization.fonction = organization.fonction.strip()
+        organization.site_internet = organization.site_internet.strip()
         organization.notes = organization.notes.strip()
 
     def _search_text(self, organization: Organization) -> str:

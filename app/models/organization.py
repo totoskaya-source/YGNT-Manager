@@ -25,9 +25,11 @@ class Organization:
     iban: str = ""
     bic: str = ""
 
+    tva: str = ""
     president: str = ""
+    fonction: str = ""
+    site_internet: str = ""
 
     notes: str = ""
 
     created_at: Optional[str] = None
-    

@@ -178,6 +178,24 @@ class ContractService:
         contract.organisateur_tva = str(contract.organisateur_tva or "").strip()
         contract.organisateur_representant = str(contract.organisateur_representant or "").strip()
         contract.organisateur_fonction = str(contract.organisateur_fonction or "").strip()
+        contract.organisateur_iban = str(contract.organisateur_iban or "").strip()
+        contract.organisateur_bic = str(contract.organisateur_bic or "").strip()
+        contract.organisateur_site_internet = str(contract.organisateur_site_internet or "").strip()
+        contract.organisateur_notes = str(contract.organisateur_notes or "").strip()
+        contract.artiste_nom = str(contract.artiste_nom or "").strip()
+        contract.artiste_adresse = str(contract.artiste_adresse or "").strip()
+        contract.artiste_postal_code = str(contract.artiste_postal_code or "").strip()
+        contract.artiste_city = str(contract.artiste_city or "").strip()
+        contract.artiste_phone = str(contract.artiste_phone or "").strip()
+        contract.artiste_email = str(contract.artiste_email or "").strip()
+        contract.artiste_siren = str(contract.artiste_siren or "").strip()
+        contract.artiste_siret = str(contract.artiste_siret or "").strip()
+        contract.artiste_ape = str(contract.artiste_ape or "").strip()
+        contract.artiste_licence = str(contract.artiste_licence or "").strip()
+        contract.artiste_iban = str(contract.artiste_iban or "").strip()
+        contract.artiste_bic = str(contract.artiste_bic or "").strip()
+        contract.artiste_social_number = str(contract.artiste_social_number or "").strip()
+        contract.artiste_notes = str(contract.artiste_notes or "").strip()
         contract.spectacle_nom = str(contract.spectacle_nom or "").strip()
         contract.prestation_adresse = str(contract.prestation_adresse or "").strip()
         contract.prestation_date = str(contract.prestation_date or "").strip()
@@ -224,6 +242,7 @@ class ContractService:
             contract.organisateur_tva,
             contract.organisateur_representant,
             contract.organisateur_fonction,
+            contract.artiste_nom,
             contract.spectacle_nom,
             contract.prestation_date,
             contract.prestation_adresse,

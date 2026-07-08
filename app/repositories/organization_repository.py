@@ -39,11 +39,14 @@ class OrganizationRepository(BaseRepository):
                 phone,
                 iban,
                 bic,
+                tva,
                 president,
+                fonction,
+                site_internet,
                 notes
             )
             VALUES(
-                ?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
             )
         """, (
             organization.name,
@@ -58,7 +61,10 @@ class OrganizationRepository(BaseRepository):
             organization.phone,
             organization.iban,
             organization.bic,
+            organization.tva,
             organization.president,
+            organization.fonction,
+            organization.site_internet,
             organization.notes
         ))
 
@@ -81,7 +87,10 @@ class OrganizationRepository(BaseRepository):
                 phone=?,
                 iban=?,
                 bic=?,
+                tva=?,
                 president=?,
+                fonction=?,
+                site_internet=?,
                 notes=?
 
             WHERE id=?
@@ -99,7 +108,10 @@ class OrganizationRepository(BaseRepository):
             organization.phone,
             organization.iban,
             organization.bic,
+            organization.tva,
             organization.president,
+            organization.fonction,
+            organization.site_internet,
             organization.notes,
             organization.id
 
