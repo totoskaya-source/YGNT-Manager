@@ -28,7 +28,6 @@ class ContractGenerator:
         values = contract.to_dict()
 
         self.replace_in_document(doc, values)
-        self.append_organizer_details(doc, values)
 
         doc.save(output_path)
         os.startfile(output_path)
