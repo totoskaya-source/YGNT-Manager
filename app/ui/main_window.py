@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 from app.ui.artistes import ArtistesPage
 from app.ui.contracts import ContractsPage
 from app.ui.organisateurs import OrganisateursPage
+from app.ui.prestations import PrestationsPage
 
 
 class MainWindow(QMainWindow):
@@ -32,10 +33,10 @@ class MainWindow(QMainWindow):
 
         self.menu.addItems([
             "🏠 Tableau de bord",
-            "👥 Artistes",
-            "📄 Contrats",
-            "🏢 Organisateurs",
             "🎤 Prestations",
+            "👥 Artistes",
+            "🏢 Organisateurs",
+            "📄 Contrats",
             "🧾 Devis",
             "💰 Factures",
             "⚙️ Paramètres",
@@ -62,7 +63,10 @@ class MainWindow(QMainWindow):
         self.main_layout.removeWidget(self.page)
         self.page.deleteLater()
 
-        if "Artistes" in page:
+        if "Prestations" in page:
+            self.page = PrestationsPage()
+
+        elif "Artistes" in page:
             self.page = ArtistesPage()
 
         elif "Contrats" in page:

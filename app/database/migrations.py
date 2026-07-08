@@ -162,6 +162,8 @@ class MigrationManager:
 
             organization_id INTEGER,
 
+            prestation_id INTEGER,
+
             event_name TEXT,
 
             venue TEXT,
@@ -250,7 +252,11 @@ class MigrationManager:
 
             FOREIGN KEY(organization_id)
                 REFERENCES organizations(id)
-                ON DELETE CASCADE
+                ON DELETE CASCADE,
+
+            FOREIGN KEY(prestation_id)
+                REFERENCES prestations(id)
+                ON DELETE SET NULL
         )
         """)
 
@@ -275,6 +281,7 @@ class MigrationManager:
         """)
 
         self._ensure_columns("contracts", {
+            "prestation_id": "INTEGER",
             "updated_at": "TEXT",
             "generated_at": "TEXT",
             "organisateur_structure": "TEXT",
@@ -311,10 +318,17 @@ class MigrationManager:
             "spectacle_nom": "TEXT",
             "spectacle_duree": "TEXT",
             "prestation_date": "TEXT",
+            "prestation_lieu": "TEXT",
             "prestation_adresse": "TEXT",
+            "prestation_postal_code": "TEXT",
+            "prestation_city": "TEXT",
             "prestation_convocation": "TEXT",
             "prestation_horaire": "TEXT",
             "cession_montant": "REAL DEFAULT 0",
+            "acompte": "REAL DEFAULT 0",
+            "cachet_tva": "TEXT",
+            "echeance": "TEXT",
+            "observations": "TEXT",
             "mode_paiement": "TEXT",
             "hebergement": "INTEGER DEFAULT 0",
             "restauration": "INTEGER DEFAULT 0",
@@ -333,6 +347,55 @@ class MigrationManager:
                 ON DELETE CASCADE
         )
         """)
+
+        self.db.execute("""
+        CREATE TABLE IF NOT EXISTS prestations(
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            reference TEXT UNIQUE NOT NULL,
+
+            type_evenement TEXT,
+
+            nom TEXT NOT NULL,
+
+            statut TEXT DEFAULT 'prospection',
+
+            date_debut TEXT NOT NULL,
+
+            date_fin TEXT,
+
+            artist_id INTEGER,
+
+            organization_id INTEGER,
+
+            lieu_nom TEXT,
+
+            lieu_adresse TEXT,
+
+            lieu_postal_code TEXT,
+
+            lieu_city TEXT,
+
+            notes TEXT,
+
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+
+            updated_at TEXT,
+
+            FOREIGN KEY(artist_id)
+                REFERENCES artists(id)
+                ON DELETE SET NULL,
+
+            FOREIGN KEY(organization_id)
+                REFERENCES organizations(id)
+                ON DELETE SET NULL
+        )
+        """)
+
+        self._ensure_columns("prestations", {
+            "updated_at": "TEXT",
+        })
 
     def _ensure_columns(self, table, columns):
         existing = {

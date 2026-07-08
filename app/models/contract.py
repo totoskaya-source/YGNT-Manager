@@ -11,6 +11,7 @@ class Contract:
 
     artist_id: Optional[int] = None
     organization_id: Optional[int] = None
+    prestation_id: Optional[int] = None
 
     event_name: str = ""
     venue: str = ""
@@ -75,11 +76,18 @@ class Contract:
     spectacle_duree: str = ""
 
     prestation_date: str = ""
+    prestation_lieu: str = ""
     prestation_adresse: str = ""
+    prestation_postal_code: str = ""
+    prestation_city: str = ""
     prestation_convocation: str = ""
     prestation_horaire: str = ""
 
     cession_montant: float | str = 0.0
+    acompte: float = 0.0
+    cachet_tva: str = ""
+    echeance: str = ""
+    observations: str = ""
     mode_paiement: str = ""
     hebergement: bool = False
     restauration: bool = False
@@ -93,10 +101,11 @@ class Contract:
 
         values.update({
             "event_name": self.event_name or self.spectacle_nom,
-            "venue": self.venue or self.prestation_adresse,
+            "venue": self.venue or self.prestation_lieu or self.prestation_adresse,
             "event_date": self.event_date or self.prestation_date,
             "gross_salary": self.gross_salary or self.cession_montant,
             "status_label": self.status_label,
+            "prestation_lieu_complet": self.prestation_lieu_complet,
         })
         return values
 
@@ -108,4 +117,11 @@ class Contract:
             "signed": "Signe",
         }
         return labels.get(self.status, self.status)
-    
+
+    @property
+    def prestation_lieu_complet(self) -> str:
+        """Adresse complete du lieu de la prestation (distincte du siege de l'organisateur)."""
+        code_ville = " ".join(part for part in (self.prestation_postal_code, self.prestation_city) if part)
+        parts = (self.prestation_lieu, self.prestation_adresse, code_ville)
+        return ", ".join(part for part in parts if part)
+

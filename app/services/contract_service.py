@@ -9,6 +9,7 @@ from app.contracts.generator import ContractGenerator
 from app.contracts.pdf_converter import PdfConverter
 from app.database.database import PROJECT_ROOT
 from app.models.contract import Contract
+from app.models.prestation import Prestation
 from app.repositories.contract_repository import ContractRepository
 
 
@@ -26,6 +27,21 @@ class ContractService:
 
     def list_contracts(self) -> list[Contract]:
         return self.repository.get_all()
+
+    def build_from_prestation(self, prestation: Prestation) -> Contract:
+        """Prepare un contrat pre-rempli (artiste, organisateur, date, lieu) a partir
+        d'une prestation. Le contrat n'est pas enregistre : c'est un point de depart,
+        toujours modifiable avant validation."""
+        return Contract(
+            prestation_id=prestation.id,
+            artist_id=prestation.artist_id,
+            organization_id=prestation.organization_id,
+            prestation_date=prestation.date_debut,
+            prestation_lieu=prestation.lieu_nom,
+            prestation_adresse=prestation.lieu_adresse,
+            prestation_postal_code=prestation.lieu_postal_code,
+            prestation_city=prestation.lieu_city,
+        )
 
     def search_contracts(self, query: str = "", status: str = "all") -> list[Contract]:
         normalized_query = query.strip().casefold()
@@ -145,6 +161,7 @@ class ContractService:
         self._prepare(contract)
         lines = [
             f"Numero : {contract.contract_number or '(automatique)'}",
+            f"Artiste : {contract.artiste_nom or '-'}",
             f"Organisateur : {contract.organisateur_structure or '-'}",
             f"Forme juridique : {contract.organisateur_forme or '-'}",
             f"Adresse organisateur : {self._organizer_address(contract) or '-'}",
@@ -158,10 +175,21 @@ class ContractService:
             f"Fonction : {contract.organisateur_fonction or '-'}",
             f"Spectacle : {contract.spectacle_nom or '-'}",
             f"Date : {contract.prestation_date or '-'}",
-            f"Lieu : {contract.prestation_adresse or '-'}",
-            f"Montant : {float(contract.cession_montant or 0):.2f} EUR",
+            f"Lieu de la prestation : {contract.prestation_lieu_complet or '-'}",
+            f"Duree : {contract.spectacle_duree or '-'}",
+            f"Cachet : {float(contract.cession_montant or 0):.2f} EUR",
+            f"Acompte : {float(contract.acompte or 0):.2f} EUR",
+            f"TVA : {contract.cachet_tva or '-'}",
+            f"Mode de paiement : {contract.mode_paiement or '-'}",
+            f"Echeance : {contract.echeance or '-'}",
             f"Statut : {self.STATUSES.get(contract.status, contract.status)}",
         ]
+
+        if contract.observations:
+            lines.extend(["", "Observations", str(contract.observations)])
+        if contract.comments:
+            lines.extend(["", "Notes", str(contract.comments)])
+
         return "\n".join(lines)
 
     def _prepare(self, contract: Contract) -> None:
@@ -197,11 +225,17 @@ class ContractService:
         contract.artiste_social_number = str(contract.artiste_social_number or "").strip()
         contract.artiste_notes = str(contract.artiste_notes or "").strip()
         contract.spectacle_nom = str(contract.spectacle_nom or "").strip()
+        contract.prestation_lieu = str(contract.prestation_lieu or "").strip()
         contract.prestation_adresse = str(contract.prestation_adresse or "").strip()
+        contract.prestation_postal_code = str(contract.prestation_postal_code or "").strip()
+        contract.prestation_city = str(contract.prestation_city or "").strip()
         contract.prestation_date = str(contract.prestation_date or "").strip()
         contract.spectacle_duree = str(contract.spectacle_duree or "").strip()
         contract.prestation_convocation = str(contract.prestation_convocation or "").strip()
         contract.prestation_horaire = str(contract.prestation_horaire or "").strip()
+        contract.cachet_tva = str(contract.cachet_tva or "").strip()
+        contract.echeance = str(contract.echeance or "").strip()
+        contract.observations = str(contract.observations or "").strip()
         contract.mode_paiement = str(contract.mode_paiement or "").strip()
         contract.status = contract.status or "draft"
 
@@ -211,7 +245,7 @@ class ContractService:
             raise ValueError("Le spectacle est obligatoire.")
 
         contract.event_name = contract.event_name or contract.spectacle_nom
-        contract.venue = contract.venue or contract.prestation_adresse
+        contract.venue = contract.venue or contract.prestation_lieu or contract.prestation_adresse
         contract.event_date = contract.event_date or contract.prestation_date
 
         try:
@@ -219,6 +253,11 @@ class ContractService:
         except (TypeError, ValueError):
             contract.cession_montant = 0.0
         contract.gross_salary = contract.gross_salary or float(contract.cession_montant)
+
+        try:
+            contract.acompte = float(contract.acompte or 0)
+        except (TypeError, ValueError):
+            contract.acompte = 0.0
 
     def _require(self, contract_id: int) -> Contract:
         contract = self.get_contract(contract_id)
