@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 
 from app.ui.artistes import ArtistesPage
 from app.ui.contracts import ContractsPage
+from app.ui.organisateurs import OrganisateursPage
 
 
 class MainWindow(QMainWindow):
@@ -66,6 +67,9 @@ class MainWindow(QMainWindow):
 
         elif "Contrats" in page:
             self.page = ContractsPage()
+
+        elif "Organisateurs" in page:
+            self.page = OrganisateursPage()
 
         else:
             self.page = QLabel(page)

@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.contracts.generator import ContractGenerator
+from app.contracts.pdf_converter import PdfConverter
 from app.database.database import PROJECT_ROOT
 from app.models.contract import Contract
 from app.repositories.contract_repository import ContractRepository
@@ -98,12 +99,14 @@ class ContractService:
         return output
 
     def export_pdf(self, contract_id: int) -> Path:
+        docx_path = self.generate_docx(contract_id)
+
         contract = self._require(contract_id)
-        self._prepare(contract)
         output = self._pdf_output_path(contract)
         output.parent.mkdir(exist_ok=True)
 
-        self._write_contract_pdf(contract, output)
+        PdfConverter().convert(docx_path, output)
+
         self.repository.mark_pdf_exported(contract_id, str(output))
         self.repository.add_history(contract_id, "Export PDF", str(output))
         return output
@@ -245,116 +248,6 @@ class ContractService:
     def _safe_filename(self, filename: str) -> str:
         return re.sub(r'[<>:"/\\\\|?*]', "-", filename).strip()
 
-    def _write_contract_pdf(self, contract: Contract, output: Path) -> None:
-        lines = [
-            "Contrat YGNT",
-            "",
-            *self.preview(contract).splitlines(),
-            "",
-            "Informations spectacle",
-            f"Duree : {contract.spectacle_duree or '-'}",
-            f"Convocation : {contract.prestation_convocation or '-'}",
-            f"Horaire : {contract.prestation_horaire or '-'}",
-            f"Mode de paiement : {contract.mode_paiement or '-'}",
-            f"Hebergement : {self._yes_no(contract.hebergement)}",
-            f"Restauration : {self._yes_no(contract.restauration)}",
-            f"Kilometrage : {self._yes_no(contract.kilometrage)}",
-        ]
-
-        if contract.comments:
-            lines.extend(["", "Commentaires", str(contract.comments)])
-
-        self._write_text_pdf(output, lines)
-
-    def _write_text_pdf(self, output: Path, lines: list[str]) -> None:
-        page_width = 595
-        page_height = 842
-        x = 56
-        y = page_height - 64
-        line_height = 16
-        pages: list[list[str]] = [[]]
-
-        for raw_line in lines:
-            wrapped = self._wrap_line(raw_line, 92) or [""]
-            for line in wrapped:
-                if y < 64:
-                    pages.append([])
-                    y = page_height - 64
-                pages[-1].append(f"BT /F1 10 Tf {x} {y} Td ({self._pdf_escape(line)}) Tj ET")
-                y -= line_height
-
-        objects = [
-            b"<< /Type /Catalog /Pages 2 0 R >>",
-            None,
-            b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-        ]
-        page_refs = []
-
-        for page in pages:
-            content = "\n".join(page).encode("latin-1", "replace")
-            content_obj = len(objects) + 1
-            objects.append(
-                b"<< /Length " + str(len(content)).encode("ascii") + b" >>\nstream\n"
-                + content
-                + b"\nendstream"
-            )
-            page_obj = len(objects) + 1
-            page_refs.append(page_obj)
-            objects.append(
-                f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {page_width} {page_height}] "
-                f"/Resources << /Font << /F1 3 0 R >> >> /Contents {content_obj} 0 R >>".encode("ascii")
-            )
-
-        kids = " ".join(f"{ref} 0 R" for ref in page_refs)
-        objects[1] = f"<< /Type /Pages /Kids [{kids}] /Count {len(page_refs)} >>".encode("ascii")
-
-        data = bytearray(b"%PDF-1.4\n")
-        offsets = [0]
-        for index, obj in enumerate(objects, start=1):
-            offsets.append(len(data))
-            data.extend(f"{index} 0 obj\n".encode("ascii"))
-            data.extend(obj or b"")
-            data.extend(b"\nendobj\n")
-
-        xref_offset = len(data)
-        data.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
-        data.extend(b"0000000000 65535 f \n")
-        for offset in offsets[1:]:
-            data.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
-        data.extend(
-            f"trailer << /Size {len(objects) + 1} /Root 1 0 R >>\n"
-            f"startxref\n{xref_offset}\n%%EOF\n".encode("ascii")
-        )
-
-        output.write_bytes(data)
-
-    def _wrap_line(self, line: str, width: int) -> list[str]:
-        text = str(line)
-        if len(text) <= width:
-            return [text]
-
-        parts = []
-        current = ""
-        for word in text.split():
-            if len(current) + len(word) + 1 > width:
-                parts.append(current)
-                current = word
-            else:
-                current = f"{current} {word}".strip()
-        if current:
-            parts.append(current)
-        return parts
-
-    def _pdf_escape(self, text: str) -> str:
-        return (
-            str(text)
-            .encode("latin-1", "replace")
-            .decode("latin-1")
-            .replace("\\", "\\\\")
-            .replace("(", "\\(")
-            .replace(")", "\\)")
-        )
-
     def _organizer_address(self, contract: Contract) -> str:
         return " ".join(
             part
@@ -365,9 +258,6 @@ class ContractService:
             )
             if part
         )
-
-    def _yes_no(self, value: bool) -> str:
-        return "Oui" if value else "Non"
 
     def _open_path(self, path: Path) -> None:
         import os
