@@ -36,6 +36,17 @@ class Artist:
 
     notes: str = ""
 
+    # Champs marketing/informatifs (Sprint 8.7) : jamais imprimes automatiquement
+    # dans un devis, un contrat ou une facture.
+    style_musical: str = ""
+    description: str = ""
+    logo_path: str = ""
+    photo_path: str = ""
+    site_internet: str = ""
+    facebook: str = ""
+    instagram: str = ""
+    youtube: str = ""
+
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     

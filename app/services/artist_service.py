@@ -53,10 +53,21 @@ class ArtistService:
         artist.city = artist.city.strip()
         artist.notes = artist.notes.strip()
 
-        try:
-            artist.fee = float(artist.fee)
-        except (TypeError, ValueError):
-            artist.fee = 0.0
+        # Champs marketing/informatifs uniquement : jamais utilises dans un
+        # devis, un contrat ou une facture.
+        artist.style_musical = artist.style_musical.strip()
+        artist.description = artist.description.strip()
+        artist.logo_path = artist.logo_path.strip()
+        artist.photo_path = artist.photo_path.strip()
+        artist.site_internet = artist.site_internet.strip()
+        artist.facebook = artist.facebook.strip()
+        artist.instagram = artist.instagram.strip()
+        artist.youtube = artist.youtube.strip()
+
+        # Le cachet habituel (fee) n'est plus lu ni ecrit par le service : la
+        # colonne reste en base pour compatibilite mais n'est plus utilisee
+        # (Sprint 8.7). ArtistDialog transmet toujours la valeur deja stockee,
+        # jamais une saisie utilisateur.
 
     def _search_text(self, artist: Artist) -> str:
         values = (

@@ -11,6 +11,7 @@ from app.database.database import PROJECT_ROOT
 from app.models.contract import Contract
 from app.models.prestation import Prestation
 from app.repositories.contract_repository import ContractRepository
+from app.services.producteur_service import ProducteurService
 
 
 class ContractService:
@@ -20,8 +21,13 @@ class ContractService:
         "signed": "Signe",
     }
 
-    def __init__(self, repository: ContractRepository | None = None) -> None:
+    def __init__(
+        self,
+        repository: ContractRepository | None = None,
+        producteur_service: ProducteurService | None = None,
+    ) -> None:
         self.repository = repository or ContractRepository()
+        self.producteur_service = producteur_service or ProducteurService()
         self.template_path = PROJECT_ROOT / "templates" / "contrat_cession.docx"
         self.exports_dir = PROJECT_ROOT / "exports"
 
@@ -65,6 +71,7 @@ class ContractService:
     def create_contract(self, contract: Contract) -> int:
         self._prepare(contract)
         contract.contract_number = contract.contract_number or self.next_contract_number()
+        self._apply_producteur_snapshot(contract)
         contract_id = self.repository.insert(contract)
         self.repository.add_history(contract_id, "Creation", "Contrat cree.")
         return contract_id
@@ -161,6 +168,13 @@ class ContractService:
         self._prepare(contract)
         lines = [
             f"Numero : {contract.contract_number or '(automatique)'}",
+            f"Producteur : {contract.producteur_nom or '-'}",
+            f"Forme juridique (producteur) : {contract.producteur_forme_juridique or '-'}",
+            f"Adresse producteur : {self._producer_address(contract) or '-'}",
+            f"SIRET producteur : {contract.producteur_siret or '-'}",
+            f"Licence producteur : {contract.producteur_licence or '-'}",
+            f"Represente par (producteur) : {contract.producteur_representant or '-'}",
+            f"Fonction (producteur) : {contract.producteur_fonction or '-'}",
             f"Artiste : {contract.artiste_nom or '-'}",
             f"Organisateur : {contract.organisateur_structure or '-'}",
             f"Forme juridique : {contract.organisateur_forme or '-'}",
@@ -193,6 +207,22 @@ class ContractService:
         return "\n".join(lines)
 
     def _prepare(self, contract: Contract) -> None:
+        contract.producteur_nom = str(contract.producteur_nom or "").strip()
+        contract.producteur_forme_juridique = str(contract.producteur_forme_juridique or "").strip()
+        contract.producteur_adresse = str(contract.producteur_adresse or "").strip()
+        contract.producteur_code_postal = str(contract.producteur_code_postal or "").strip()
+        contract.producteur_ville = str(contract.producteur_ville or "").strip()
+        contract.producteur_siret = str(contract.producteur_siret or "").strip()
+        contract.producteur_ape = str(contract.producteur_ape or "").strip()
+        contract.producteur_licence = str(contract.producteur_licence or "").strip()
+        contract.producteur_tva_intracommunautaire = str(contract.producteur_tva_intracommunautaire or "").strip()
+        contract.producteur_telephone = str(contract.producteur_telephone or "").strip()
+        contract.producteur_email = str(contract.producteur_email or "").strip()
+        contract.producteur_site = str(contract.producteur_site or "").strip()
+        contract.producteur_representant = str(contract.producteur_representant or "").strip()
+        contract.producteur_fonction = str(contract.producteur_fonction or "").strip()
+        contract.producteur_iban = str(contract.producteur_iban or "").strip()
+        contract.producteur_bic = str(contract.producteur_bic or "").strip()
         contract.organisateur_structure = str(contract.organisateur_structure or "").strip()
         contract.organisateur_forme = str(contract.organisateur_forme or "").strip()
         contract.organisateur_adresse = str(contract.organisateur_adresse or "").strip()
@@ -316,6 +346,47 @@ class ContractService:
             )
             if part
         )
+
+    def _producer_address(self, contract: Contract) -> str:
+        return " ".join(
+            part
+            for part in (
+                contract.producteur_adresse,
+                contract.producteur_code_postal,
+                contract.producteur_ville,
+            )
+            if part
+        )
+
+    def _apply_producteur_snapshot(self, contract: Contract) -> None:
+        """Copie l'instantane du Producteur actif sur un NOUVEAU contrat. Ne doit
+        jamais etre appele lors d'une modification : le contrat existant conserve
+        les informations figees a sa creation, meme si la fiche Producteur change
+        ensuite (meme principe que l'instantane organisateur/artiste)."""
+        if contract.producteur_id is not None:
+            return
+
+        producteur = self.producteur_service.get_active_producteur()
+        if producteur is None:
+            return
+
+        contract.producteur_id = producteur.id
+        contract.producteur_nom = producteur.nom
+        contract.producteur_forme_juridique = producteur.forme_juridique
+        contract.producteur_adresse = producteur.adresse
+        contract.producteur_code_postal = producteur.postal_code
+        contract.producteur_ville = producteur.city
+        contract.producteur_siret = producteur.siret
+        contract.producteur_ape = producteur.ape
+        contract.producteur_licence = producteur.licence
+        contract.producteur_tva_intracommunautaire = producteur.tva
+        contract.producteur_telephone = producteur.phone
+        contract.producteur_email = producteur.email
+        contract.producteur_site = producteur.site_internet
+        contract.producteur_representant = producteur.representant
+        contract.producteur_fonction = producteur.fonction
+        contract.producteur_iban = producteur.iban
+        contract.producteur_bic = producteur.bic
 
     def _open_path(self, path: Path) -> None:
         import os

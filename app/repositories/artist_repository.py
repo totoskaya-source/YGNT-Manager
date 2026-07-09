@@ -47,10 +47,18 @@ class ArtistRepository(BaseRepository):
                 licence,
                 iban,
                 bic,
-                notes
+                notes,
+                style_musical,
+                description,
+                logo_path,
+                photo_path,
+                site_internet,
+                facebook,
+                instagram,
+                youtube
             )
             VALUES(
-                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
             )
         """, (
             artist.stage_name,
@@ -71,7 +79,15 @@ class ArtistRepository(BaseRepository):
             artist.licence,
             artist.iban,
             artist.bic,
-            artist.notes
+            artist.notes,
+            artist.style_musical,
+            artist.description,
+            artist.logo_path,
+            artist.photo_path,
+            artist.site_internet,
+            artist.facebook,
+            artist.instagram,
+            artist.youtube,
         ))
 
         return cursor.lastrowid
@@ -100,6 +116,14 @@ class ArtistRepository(BaseRepository):
                 iban=?,
                 bic=?,
                 notes=?,
+                style_musical=?,
+                description=?,
+                logo_path=?,
+                photo_path=?,
+                site_internet=?,
+                facebook=?,
+                instagram=?,
+                youtube=?,
                 updated_at=CURRENT_TIMESTAMP
 
             WHERE id=?
@@ -124,6 +148,14 @@ class ArtistRepository(BaseRepository):
             artist.iban,
             artist.bic,
             artist.notes,
+            artist.style_musical,
+            artist.description,
+            artist.logo_path,
+            artist.photo_path,
+            artist.site_internet,
+            artist.facebook,
+            artist.instagram,
+            artist.youtube,
             artist.id
 
         ))

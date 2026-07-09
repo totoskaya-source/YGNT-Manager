@@ -28,8 +28,8 @@ class ArtistesPage(QWidget):
         "Nom legal",
         "Nom de scene",
         "Instrument",
+        "Style musical",
         "Statut",
-        "Cachet",
         "Email",
         "Telephone",
         "Ville",
@@ -45,7 +45,7 @@ class ArtistesPage(QWidget):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
 
-        title = QLabel("Artistes")
+        title = QLabel("Formations")
         title.setStyleSheet("font-size: 26px; font-weight: 700;")
         layout.addWidget(title)
 
@@ -84,7 +84,7 @@ class ArtistesPage(QWidget):
         self.btn_refresh = QPushButton("Actualiser")
 
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Rechercher un artiste...")
+        self.search.setPlaceholderText("Rechercher une formation...")
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self.refresh_table)
 
@@ -109,7 +109,7 @@ class ArtistesPage(QWidget):
             try:
                 self.service.create_artist(dialog.artist)
             except ValueError as exc:
-                QMessageBox.warning(self, "Artiste invalide", str(exc))
+                QMessageBox.warning(self, "Formation invalide", str(exc))
                 return
 
             self.refresh_table()
@@ -118,13 +118,13 @@ class ArtistesPage(QWidget):
         artist_id = self._selected_artist_id()
 
         if artist_id is None:
-            QMessageBox.information(self, "Modification", "Selectionnez un artiste.")
+            QMessageBox.information(self, "Modification", "Selectionnez une formation.")
             return
 
         artist = self.service.get_artist(artist_id)
 
         if artist is None:
-            QMessageBox.warning(self, "Modification", "Cet artiste n'existe plus.")
+            QMessageBox.warning(self, "Modification", "Cette formation n'existe plus.")
             self.refresh_table()
             return
 
@@ -134,7 +134,7 @@ class ArtistesPage(QWidget):
             try:
                 self.service.update_artist(dialog.artist)
             except ValueError as exc:
-                QMessageBox.warning(self, "Artiste invalide", str(exc))
+                QMessageBox.warning(self, "Formation invalide", str(exc))
                 return
 
             self.refresh_table()
@@ -143,11 +143,11 @@ class ArtistesPage(QWidget):
         artist_id = self._selected_artist_id()
 
         if artist_id is None:
-            QMessageBox.information(self, "Suppression", "Selectionnez un artiste.")
+            QMessageBox.information(self, "Suppression", "Selectionnez une formation.")
             return
 
         artist = self.service.get_artist(artist_id)
-        label = self._artist_label(artist) if artist else "cet artiste"
+        label = self._artist_label(artist) if artist else "cette formation"
 
         response = QMessageBox.question(
             self,
@@ -176,19 +176,15 @@ class ArtistesPage(QWidget):
                 artist.legal_name,
                 artist.stage_name,
                 artist.instrument,
+                artist.style_musical,
                 artist.status,
-                float(artist.fee or 0),
                 artist.email,
                 artist.phone,
                 artist.city,
             )
 
             for column, value in enumerate(values):
-                item = self._make_item(value)
-                if column == 5:
-                    item.setText(f"{float(value):.2f} EUR")
-                    item.setData(Qt.ItemDataRole.EditRole, float(value))
-                self.table.setItem(row, column, item)
+                self.table.setItem(row, column, self._make_item(value))
 
         self.table.setSortingEnabled(True)
         self.table.resizeColumnsToContents()
@@ -222,6 +218,6 @@ class ArtistesPage(QWidget):
 
     def _artist_label(self, artist: Artist | None) -> str:
         if artist is None:
-            return "cet artiste"
+            return "cette formation"
 
-        return artist.stage_name or artist.legal_name or "cet artiste"
+        return artist.stage_name or artist.legal_name or "cette formation"

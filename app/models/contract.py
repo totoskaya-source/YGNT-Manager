@@ -12,6 +12,7 @@ class Contract:
     artist_id: Optional[int] = None
     organization_id: Optional[int] = None
     prestation_id: Optional[int] = None
+    producteur_id: Optional[int] = None
 
     event_name: str = ""
     venue: str = ""
@@ -38,6 +39,23 @@ class Contract:
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     generated_at: Optional[str] = None
+
+    producteur_nom: str = ""
+    producteur_forme_juridique: str = ""
+    producteur_adresse: str = ""
+    producteur_code_postal: str = ""
+    producteur_ville: str = ""
+    producteur_siret: str = ""
+    producteur_ape: str = ""
+    producteur_licence: str = ""
+    producteur_tva_intracommunautaire: str = ""
+    producteur_telephone: str = ""
+    producteur_email: str = ""
+    producteur_site: str = ""
+    producteur_representant: str = ""
+    producteur_fonction: str = ""
+    producteur_iban: str = ""
+    producteur_bic: str = ""
 
     organisateur_structure: str = ""
     organisateur_forme: str = ""

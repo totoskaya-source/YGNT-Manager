@@ -342,8 +342,8 @@ class ContractDialog(QDialog):
         self.artiste_social_number.setText(artist.social_number or "")
         self.artiste_notes.setPlainText(artist.notes or "")
 
-        # Le cachet habituel devient la valeur par defaut, mais reste modifiable.
-        self.montant.setValue(float(artist.fee or 0))
+        # Le montant n'est jamais pre-rempli depuis la Formation (Sprint 8.8) :
+        # il reste toujours une saisie manuelle, par Prestation ou par Contrat.
 
     def _on_organization_selected(self, _index: int) -> None:
         organization_id = self.organization_combo.currentData()
@@ -417,6 +417,35 @@ class ContractDialog(QDialog):
                 if self._source_contract
                 else self._initial_prestation_id
             ),
+            # Instantane Producteur : jamais saisi dans ce dialogue, jamais
+            # recalcule ici. Un nouveau contrat le recoit du Producteur actif
+            # dans ContractService.create_contract ; un contrat existant
+            # conserve tel quel l'instantane deja enregistre.
+            producteur_id=self._source_contract.producteur_id if self._source_contract else None,
+            producteur_nom=self._source_contract.producteur_nom if self._source_contract else "",
+            producteur_forme_juridique=(
+                self._source_contract.producteur_forme_juridique if self._source_contract else ""
+            ),
+            producteur_adresse=self._source_contract.producteur_adresse if self._source_contract else "",
+            producteur_code_postal=(
+                self._source_contract.producteur_code_postal if self._source_contract else ""
+            ),
+            producteur_ville=self._source_contract.producteur_ville if self._source_contract else "",
+            producteur_siret=self._source_contract.producteur_siret if self._source_contract else "",
+            producteur_ape=self._source_contract.producteur_ape if self._source_contract else "",
+            producteur_licence=self._source_contract.producteur_licence if self._source_contract else "",
+            producteur_tva_intracommunautaire=(
+                self._source_contract.producteur_tva_intracommunautaire if self._source_contract else ""
+            ),
+            producteur_telephone=self._source_contract.producteur_telephone if self._source_contract else "",
+            producteur_email=self._source_contract.producteur_email if self._source_contract else "",
+            producteur_site=self._source_contract.producteur_site if self._source_contract else "",
+            producteur_representant=(
+                self._source_contract.producteur_representant if self._source_contract else ""
+            ),
+            producteur_fonction=self._source_contract.producteur_fonction if self._source_contract else "",
+            producteur_iban=self._source_contract.producteur_iban if self._source_contract else "",
+            producteur_bic=self._source_contract.producteur_bic if self._source_contract else "",
             artiste_nom=self.artiste_nom.text().strip(),
             artiste_adresse=self.artiste_adresse.text().strip(),
             artiste_postal_code=self.artiste_postal_code.text().strip(),

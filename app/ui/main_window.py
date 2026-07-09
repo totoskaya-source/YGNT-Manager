@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
         self.menu.addItems([
             "🏠 Tableau de bord",
             "🎤 Prestations",
-            "👥 Artistes",
+            "👥 Formations",
             "🏢 Organisateurs",
             "📄 Contrats",
             "🧾 Devis",
@@ -67,7 +67,7 @@ class MainWindow(QMainWindow):
         if "Prestations" in page:
             self.page = PrestationsPage()
 
-        elif "Artistes" in page:
+        elif "Formations" in page:
             self.page = ArtistesPage()
 
         elif "Contrats" in page:

@@ -159,8 +159,6 @@ class PrestationDialog(QDialog):
         self.artiste_email.setReadOnly(True)
         self.artiste_siret = QLineEdit()
         self.artiste_siret.setReadOnly(True)
-        self.artiste_fee = QLineEdit()
-        self.artiste_fee.setReadOnly(True)
 
         form.addRow("Artiste", self.artist_combo)
         form.addRow("Nom", self.artiste_nom)
@@ -169,7 +167,6 @@ class PrestationDialog(QDialog):
         form.addRow("Telephone", self.artiste_phone)
         form.addRow("Email", self.artiste_email)
         form.addRow("SIRET", self.artiste_siret)
-        form.addRow("Cachet habituel", self.artiste_fee)
 
         self.tabs.addTab(self._wrap_in_scroll(content), "Artiste")
 
@@ -260,7 +257,6 @@ class PrestationDialog(QDialog):
         self.artiste_phone.setText(artist.phone or "")
         self.artiste_email.setText(artist.email or "")
         self.artiste_siret.setText(artist.siret or "")
-        self.artiste_fee.setText(f"{float(artist.fee or 0):.2f} EUR")
 
     def _clear_artist_fields(self) -> None:
         for field in (
@@ -270,7 +266,6 @@ class PrestationDialog(QDialog):
             self.artiste_phone,
             self.artiste_email,
             self.artiste_siret,
-            self.artiste_fee,
         ):
             field.setText("")
 
