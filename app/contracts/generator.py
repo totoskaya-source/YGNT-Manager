@@ -1,6 +1,8 @@
 from pathlib import Path
 import os
 
+from app.documents.placeholder_engine import PlaceholderEngine
+
 
 class ContractGenerator:
     ORGANIZER_DETAILS = (
@@ -33,35 +35,10 @@ class ContractGenerator:
         os.startfile(output_path)
 
     def replace_in_document(self, doc, values):
-        for paragraph in doc.paragraphs:
-            self.replace_paragraph(paragraph, values)
-
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        self.replace_paragraph(paragraph, values)
+        PlaceholderEngine.replace_in_document(doc, values)
 
     def replace_paragraph(self, paragraph, values):
-        if not paragraph.runs:
-            return
-
-        full_text = "".join(run.text for run in paragraph.runs)
-        original = full_text
-
-        for key, value in values.items():
-            full_text = full_text.replace(
-                "{{" + key + "}}",
-                str(value)
-            )
-
-        if full_text == original:
-            return
-
-        paragraph.runs[0].text = full_text
-
-        for run in paragraph.runs[1:]:
-            run.text = ""
+        PlaceholderEngine.replace_paragraph(paragraph, values)
 
     def append_organizer_details(self, doc, values):
         details = [

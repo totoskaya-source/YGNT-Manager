@@ -1,0 +1,221 @@
+from __future__ import annotations
+
+from typing import Any
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
+from app.models.devis import Devis
+from app.services.devis_service import DevisService
+from app.ui.devis_dialog import DevisDialog
+
+
+class DevisPage(QWidget):
+    HEADERS = (
+        "ID",
+        "Reference",
+        "Date",
+        "Formation",
+        "Organisateur",
+        "Objet",
+        "Montant",
+        "Statut",
+    )
+
+    def __init__(self, service: DevisService | None = None) -> None:
+        super().__init__()
+
+        self.service = service or DevisService()
+        self._devis: list[Devis] = []
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
+
+        title = QLabel("Devis")
+        title.setStyleSheet("font-size: 26px; font-weight: 700;")
+        layout.addWidget(title)
+
+        layout.addLayout(self._build_toolbar())
+
+        self.table = QTableWidget()
+        self.table.setColumnCount(len(self.HEADERS))
+        self.table.setHorizontalHeaderLabels(self.HEADERS)
+        self.table.setAlternatingRowColors(True)
+        self.table.setSortingEnabled(True)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setColumnHidden(0, True)
+        self.table.itemDoubleClicked.connect(self.edit_selected_devis)
+        self.table.itemSelectionChanged.connect(self._sync_buttons)
+
+        header = self.table.horizontalHeader()
+        header.setSortIndicatorShown(True)
+        header.setSectionsClickable(True)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        header.setStretchLastSection(True)
+
+        layout.addWidget(self.table)
+
+        self.refresh_table()
+        self._sync_buttons()
+
+    def _build_toolbar(self) -> QHBoxLayout:
+        toolbar = QHBoxLayout()
+        toolbar.setSpacing(8)
+
+        self.btn_add = QPushButton("Nouveau")
+        self.btn_edit = QPushButton("Modifier")
+        self.btn_delete = QPushButton("Supprimer")
+        self.btn_refresh = QPushButton("Actualiser")
+
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("Rechercher un devis...")
+        self.search.setClearButtonEnabled(True)
+        self.search.textChanged.connect(self.refresh_table)
+
+        self.btn_add.clicked.connect(self.new_devis)
+        self.btn_edit.clicked.connect(self.edit_selected_devis)
+        self.btn_delete.clicked.connect(self.delete_selected_devis)
+        self.btn_refresh.clicked.connect(self.refresh_table)
+
+        toolbar.addWidget(self.btn_add)
+        toolbar.addWidget(self.btn_edit)
+        toolbar.addWidget(self.btn_delete)
+        toolbar.addWidget(self.btn_refresh)
+        toolbar.addStretch()
+        toolbar.addWidget(self.search, 1)
+
+        return toolbar
+
+    def new_devis(self) -> None:
+        dialog = DevisDialog(self, service=self.service)
+
+        if dialog.exec():
+            try:
+                self.service.create_devis(dialog.devis)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Devis invalide", str(exc))
+                return
+
+            self.refresh_table()
+
+    def edit_selected_devis(self, *_args: Any) -> None:
+        devis_id = self._selected_devis_id()
+
+        if devis_id is None:
+            QMessageBox.information(self, "Modification", "Selectionnez un devis.")
+            return
+
+        devis = self.service.get_devis(devis_id)
+
+        if devis is None:
+            QMessageBox.warning(self, "Modification", "Ce devis n'existe plus.")
+            self.refresh_table()
+            return
+
+        dialog = DevisDialog(self, devis=devis, service=self.service)
+
+        if dialog.exec():
+            try:
+                self.service.update_devis(dialog.devis)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Devis invalide", str(exc))
+                return
+
+            self.refresh_table()
+
+    def delete_selected_devis(self) -> None:
+        devis_id = self._selected_devis_id()
+
+        if devis_id is None:
+            QMessageBox.information(self, "Suppression", "Selectionnez un devis.")
+            return
+
+        devis = self.service.get_devis(devis_id)
+        label = devis.devis_number if devis and devis.devis_number else "ce devis"
+
+        response = QMessageBox.question(
+            self,
+            "Confirmation",
+            f"Supprimer {label} ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if response == QMessageBox.StandardButton.Yes:
+            self.service.delete_devis(devis_id)
+            self.refresh_table()
+
+    def refresh_table(self) -> None:
+        self._devis = self.service.search_devis(self.search.text())
+        self._fill_table(self._devis)
+        self._sync_buttons()
+
+    def _fill_table(self, devis_list: list[Devis]) -> None:
+        self.table.setSortingEnabled(False)
+        self.table.setRowCount(len(devis_list))
+
+        for row, devis in enumerate(devis_list):
+            values = (
+                devis.id,
+                devis.devis_number,
+                devis.prestation_date,
+                devis.formation_nom,
+                devis.organisateur_structure,
+                devis.spectacle_nom,
+                float(devis.montant or 0),
+                devis.status_label,
+            )
+
+            for column, value in enumerate(values):
+                item = self._make_item(value)
+                if column == 6:
+                    # L'ordre importe : EditRole doit etre fixe avant le texte
+                    # affiche, sinon Qt reaffiche la valeur brute (voir tests).
+                    item.setData(Qt.ItemDataRole.EditRole, float(value))
+                    item.setText(f"{float(value):.2f} EUR")
+                self.table.setItem(row, column, item)
+
+        self.table.setSortingEnabled(True)
+        self.table.resizeColumnsToContents()
+        self.table.horizontalHeader().setStretchLastSection(True)
+
+    def _make_item(self, value: Any) -> QTableWidgetItem:
+        item = QTableWidgetItem("" if value is None else str(value))
+        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        return item
+
+    def _selected_devis_id(self) -> int | None:
+        row = self.table.currentRow()
+
+        if row < 0:
+            return None
+
+        item = self.table.item(row, 0)
+
+        if item is None:
+            return None
+
+        try:
+            return int(item.text())
+        except ValueError:
+            return None
+
+    def _sync_buttons(self) -> None:
+        has_selection = self._selected_devis_id() is not None
+        self.btn_edit.setEnabled(has_selection)
+        self.btn_delete.setEnabled(has_selection)

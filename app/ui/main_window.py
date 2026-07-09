@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 
 from app.ui.artistes import ArtistesPage
 from app.ui.contracts import ContractsPage
+from app.ui.devis import DevisPage
 from app.ui.organisateurs import OrganisateursPage
 from app.ui.parametres import ParametresPage
 from app.ui.prestations import PrestationsPage
@@ -37,8 +38,8 @@ class MainWindow(QMainWindow):
             "🎤 Prestations",
             "👥 Formations",
             "🏢 Organisateurs",
+            "📄 Devis",
             "📄 Contrats",
-            "🧾 Devis",
             "💰 Factures",
             "⚙️ Paramètres",
         ])
@@ -69,6 +70,9 @@ class MainWindow(QMainWindow):
 
         elif "Formations" in page:
             self.page = ArtistesPage()
+
+        elif "Devis" in page:
+            self.page = DevisPage()
 
         elif "Contrats" in page:
             self.page = ContractsPage()
