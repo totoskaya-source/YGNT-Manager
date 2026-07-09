@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 from app.models.artist import Artist
 from app.services.artist_service import ArtistService
 from app.ui.artist_dialog import ArtistDialog
+from app.ui.dialogs import confirm_delete
 
 
 class ArtistesPage(QWidget):
@@ -149,15 +150,7 @@ class ArtistesPage(QWidget):
         artist = self.service.get_artist(artist_id)
         label = self._artist_label(artist) if artist else "cette formation"
 
-        response = QMessageBox.question(
-            self,
-            "Confirmation",
-            f"Supprimer {label} ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-
-        if response == QMessageBox.StandardButton.Yes:
+        if confirm_delete(self, label):
             self.service.delete_artist(artist_id)
             self.refresh_table()
 

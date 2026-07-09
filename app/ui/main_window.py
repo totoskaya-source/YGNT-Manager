@@ -13,14 +13,17 @@ from app.ui.devis import DevisPage
 from app.ui.organisateurs import OrganisateursPage
 from app.ui.parametres import ParametresPage
 from app.ui.prestations import PrestationsPage
+from app.version import APP_NAME, APP_VERSION
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("YGNT Manager")
+        self.setWindowTitle(f"{APP_NAME} v{APP_VERSION}")
         self.resize(1400, 850)
+
+        self.statusBar().addPermanentWidget(QLabel(f"Version {APP_VERSION}"))
 
         central = QWidget()
         self.setCentralWidget(central)

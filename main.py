@@ -2,11 +2,13 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
+from app.database.backup import backup_database
 from app.database.migrations import MigrationManager
 from app.ui.main_window import MainWindow
 
 
 def main():
+    backup_database()
     MigrationManager().migrate()
 
     app = QApplication(sys.argv)

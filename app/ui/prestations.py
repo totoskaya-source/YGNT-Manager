@@ -25,6 +25,7 @@ from app.services.organization_service import OrganizationService
 from app.services.prestation_service import PrestationService
 from app.ui.contract_dialog import ContractDialog
 from app.ui.devis_dialog import DevisDialog
+from app.ui.dialogs import confirm_delete
 from app.ui.prestation_dialog import PrestationDialog
 
 
@@ -187,15 +188,7 @@ class PrestationsPage(QWidget):
         prestation = self.service.get_prestation(prestation_id)
         label = prestation.nom if prestation and prestation.nom else "cette prestation"
 
-        response = QMessageBox.question(
-            self,
-            "Confirmation",
-            f"Supprimer {label} ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-
-        if response == QMessageBox.StandardButton.Yes:
+        if confirm_delete(self, label):
             self.service.delete_prestation(prestation_id)
             self.refresh_table()
 

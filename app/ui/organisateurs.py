@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from app.models.organization import Organization
 from app.services.organization_service import OrganizationService
+from app.ui.dialogs import confirm_delete
 from app.ui.organization_dialog import OrganizationDialog
 
 
@@ -148,15 +149,7 @@ class OrganisateursPage(QWidget):
         organization = self.service.get_organization(organization_id)
         label = self._organization_label(organization) if organization else "cet organisateur"
 
-        response = QMessageBox.question(
-            self,
-            "Confirmation",
-            f"Supprimer {label} ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-
-        if response == QMessageBox.StandardButton.Yes:
+        if confirm_delete(self, label):
             self.service.delete_organization(organization_id)
             self.refresh_table()
 

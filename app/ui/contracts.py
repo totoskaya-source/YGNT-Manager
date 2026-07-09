@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from app.models.contract import Contract
 from app.services.contract_service import ContractService
 from app.ui.contract_dialog import ContractDialog
+from app.ui.dialogs import confirm_delete
 
 
 class ContractsPage(QWidget):
@@ -179,15 +180,9 @@ class ContractsPage(QWidget):
             QMessageBox.information(self, "Suppression", "Selectionnez un contrat.")
             return
 
-        response = QMessageBox.question(
-            self,
-            "Confirmation",
-            f"Supprimer le contrat {contract.contract_number or contract.id} ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
+        label = f"le contrat {contract.contract_number or contract.id}"
 
-        if response == QMessageBox.StandardButton.Yes:
+        if confirm_delete(self, label):
             self._run_action(
                 lambda: self.service.delete_contract(int(contract.id)),
                 "Contrat supprime.",

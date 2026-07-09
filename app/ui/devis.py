@@ -24,6 +24,7 @@ from app.services.devis_service import DevisService
 from app.services.organization_service import OrganizationService
 from app.ui.contract_dialog import ContractDialog
 from app.ui.devis_dialog import DevisDialog
+from app.ui.dialogs import confirm_delete
 
 
 class DevisPage(QWidget):
@@ -164,15 +165,7 @@ class DevisPage(QWidget):
         devis = self.service.get_devis(devis_id)
         label = devis.devis_number if devis and devis.devis_number else "ce devis"
 
-        response = QMessageBox.question(
-            self,
-            "Confirmation",
-            f"Supprimer {label} ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-
-        if response == QMessageBox.StandardButton.Yes:
+        if confirm_delete(self, label):
             self.service.delete_devis(devis_id)
             self.refresh_table()
 
