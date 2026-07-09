@@ -2,26 +2,39 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import QDate, QSettings
+from PySide6.QtCore import QDate, QSettings, Qt
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QComboBox,
     QDateEdit,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
     QLineEdit,
     QMessageBox,
+    QPushButton,
     QScrollArea,
+    QTableWidget,
+    QTableWidgetItem,
     QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
+from app.models.contract import Contract
+from app.models.devis import Devis
 from app.models.prestation import Prestation
 from app.services.artist_service import ArtistService
+from app.services.contract_service import ContractService
+from app.services.devis_service import DevisService
 from app.services.organization_service import OrganizationService
 from app.services.prestation_service import PrestationService
+from app.ui.contract_dialog import ContractDialog
+from app.ui.devis_dialog import DevisDialog
 
 DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 850
@@ -45,13 +58,19 @@ class PrestationDialog(QDialog):
         service: PrestationService | None = None,
         artist_service: ArtistService | None = None,
         organization_service: OrganizationService | None = None,
+        devis_service: DevisService | None = None,
+        contract_service: ContractService | None = None,
     ) -> None:
         super().__init__(parent)
 
         self.service = service or PrestationService()
         self.artist_service = artist_service or ArtistService()
         self.organization_service = organization_service or OrganizationService()
+        self.devis_service = devis_service or DevisService()
+        self.contract_service = contract_service or ContractService()
         self._source_prestation = prestation
+        self._dossier_devis: list[Devis] = []
+        self._dossier_contracts: list[Contract] = []
         self.prestation = prestation or Prestation(reference=self.service.next_reference())
 
         self.setWindowTitle("Modifier une prestation" if prestation else "Nouvelle prestation")
@@ -73,6 +92,7 @@ class PrestationDialog(QDialog):
         self._build_artist_tab()
         self._build_organizer_tab()
         self._build_location_tab()
+        self._build_dossier_tab()
         self._build_notes_tab()
 
         # Les boutons restent en dehors des onglets : toujours visibles, jamais coupes.
@@ -87,6 +107,7 @@ class PrestationDialog(QDialog):
         layout.addWidget(self.buttons)
 
         self._fill_form(self.prestation)
+        self._refresh_dossier()
 
         # Connectes apres le remplissage initial : un changement manuel de
         # l'utilisateur declenche l'auto-remplissage, pas le chargement du formulaire.
@@ -216,6 +237,80 @@ class PrestationDialog(QDialog):
 
         self.tabs.addTab(self._wrap_in_scroll(content), "Lieu")
 
+    def _build_dossier_tab(self) -> None:
+        """Vue consolidee de tout ce qui se rattache a cette prestation (Devis,
+        Contrat, Facture, Paiement, Documents, Historique). Consultation et
+        navigation uniquement : aucun document n'est cree depuis cet onglet,
+        les documents transactionnels sont retrouves via prestation_id, jamais
+        dupliques (cf. docs/PRESTATIONS_ARCHITECTURE.md)."""
+        content = QWidget()
+        layout = QVBoxLayout(content)
+
+        layout.addWidget(self._section_label("Devis"))
+        self.devis_table = self._build_dossier_table()
+        self.devis_table.itemSelectionChanged.connect(self._sync_dossier_buttons)
+        self.devis_table.itemDoubleClicked.connect(self._open_selected_devis)
+        layout.addWidget(self.devis_table)
+
+        devis_actions = QHBoxLayout()
+        self.btn_open_devis = QPushButton("Ouvrir")
+        self.btn_open_devis.clicked.connect(self._open_selected_devis)
+        devis_actions.addWidget(self.btn_open_devis)
+        devis_actions.addStretch()
+        layout.addLayout(devis_actions)
+
+        layout.addWidget(self._section_label("Contrat"))
+        self.contract_table = self._build_dossier_table()
+        self.contract_table.itemSelectionChanged.connect(self._sync_dossier_buttons)
+        self.contract_table.itemDoubleClicked.connect(self._open_selected_contract)
+        layout.addWidget(self.contract_table)
+
+        contract_actions = QHBoxLayout()
+        self.btn_open_contract = QPushButton("Ouvrir")
+        self.btn_open_contract.clicked.connect(self._open_selected_contract)
+        contract_actions.addWidget(self.btn_open_contract)
+        contract_actions.addStretch()
+        layout.addLayout(contract_actions)
+
+        layout.addWidget(self._section_label("Facture"))
+        layout.addWidget(QLabel("Aucune facture (module pas encore implemente)."))
+
+        layout.addWidget(self._section_label("Paiement"))
+        layout.addWidget(QLabel("Aucun paiement (module pas encore implemente)."))
+
+        layout.addWidget(self._section_label("Documents"))
+        layout.addWidget(QLabel("Aucun document."))
+
+        layout.addWidget(self._section_label("Historique"))
+        layout.addWidget(QLabel("Aucun historique."))
+
+        layout.addStretch()
+
+        self.tabs.addTab(self._wrap_in_scroll(content), "Dossier")
+
+    @staticmethod
+    def _section_label(text: str) -> QLabel:
+        label = QLabel(text)
+        label.setStyleSheet("font-weight: 700; margin-top: 6px;")
+        return label
+
+    @staticmethod
+    def _build_dossier_table() -> QTableWidget:
+        table = QTableWidget()
+        table.setColumnCount(3)
+        table.setHorizontalHeaderLabels(["Reference", "Statut", "Date"])
+        table.setAlternatingRowColors(True)
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.setMaximumHeight(140)
+
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        header.setStretchLastSection(True)
+
+        return table
+
     def _build_notes_tab(self) -> None:
         content = QWidget()
         layout = QVBoxLayout(content)
@@ -301,6 +396,86 @@ class PrestationDialog(QDialog):
 
     def _save_geometry(self) -> None:
         self._settings.setValue("geometry", self.saveGeometry())
+
+    # ===== Dossier (Devis / Contrat lies a cette prestation) =====
+
+    def _refresh_dossier(self) -> None:
+        self._dossier_devis = []
+        self._dossier_contracts = []
+
+        if self._source_prestation is not None and self._source_prestation.id is not None:
+            self._dossier_devis = self.devis_service.list_for_prestation(self._source_prestation.id)
+            self._dossier_contracts = self.contract_service.list_for_prestation(self._source_prestation.id)
+
+        self.devis_table.setRowCount(len(self._dossier_devis))
+        for row, devis in enumerate(self._dossier_devis):
+            self.devis_table.setItem(row, 0, self._dossier_item(devis.devis_number))
+            self.devis_table.setItem(row, 1, self._dossier_item(devis.status_label))
+            self.devis_table.setItem(row, 2, self._dossier_item(devis.prestation_date))
+
+        self.contract_table.setRowCount(len(self._dossier_contracts))
+        for row, contract in enumerate(self._dossier_contracts):
+            self.contract_table.setItem(row, 0, self._dossier_item(contract.contract_number))
+            self.contract_table.setItem(row, 1, self._dossier_item(contract.status_label))
+            self.contract_table.setItem(row, 2, self._dossier_item(contract.prestation_date or contract.event_date))
+
+        self.devis_table.resizeColumnsToContents()
+        self.contract_table.resizeColumnsToContents()
+        self._sync_dossier_buttons()
+
+    @staticmethod
+    def _dossier_item(value: Any) -> QTableWidgetItem:
+        item = QTableWidgetItem("" if value is None else str(value))
+        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        return item
+
+    def _sync_dossier_buttons(self) -> None:
+        self.btn_open_devis.setEnabled(self.devis_table.currentRow() >= 0)
+        self.btn_open_contract.setEnabled(self.contract_table.currentRow() >= 0)
+
+    def _open_selected_devis(self, *_args: Any) -> None:
+        row = self.devis_table.currentRow()
+        if row < 0 or row >= len(self._dossier_devis):
+            return
+
+        dialog = DevisDialog(
+            self,
+            devis=self._dossier_devis[row],
+            service=self.devis_service,
+            artist_service=self.artist_service,
+            organization_service=self.organization_service,
+        )
+
+        if dialog.exec():
+            try:
+                self.devis_service.update_devis(dialog.devis)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Devis invalide", str(exc))
+                return
+
+            self._refresh_dossier()
+
+    def _open_selected_contract(self, *_args: Any) -> None:
+        row = self.contract_table.currentRow()
+        if row < 0 or row >= len(self._dossier_contracts):
+            return
+
+        dialog = ContractDialog(
+            self,
+            contract=self._dossier_contracts[row],
+            service=self.contract_service,
+            artist_service=self.artist_service,
+            organization_service=self.organization_service,
+        )
+
+        if dialog.exec():
+            try:
+                self.contract_service.update_contract(dialog.contract)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Contrat invalide", str(exc))
+                return
+
+            self._refresh_dossier()
 
     # ===== Sauvegarde =====
 

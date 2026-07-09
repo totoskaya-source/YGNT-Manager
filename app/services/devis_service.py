@@ -4,9 +4,11 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from app.contracts.pdf_converter import PdfConverter
 from app.database.database import PROJECT_ROOT
 from app.devis.generator import DevisGenerator
 from app.models.devis import Devis
+from app.models.prestation import Prestation
 from app.repositories.devis_repository import DevisRepository
 from app.services.producteur_service import ProducteurService
 
@@ -32,6 +34,29 @@ class DevisService:
 
     def list_devis(self) -> list[Devis]:
         return self.repository.get_all()
+
+    def list_for_prestation(self, prestation_id: int) -> list[Devis]:
+        """Devis rattaches a une prestation (Dossier), via prestation_id
+        uniquement : aucune duplication de donnee, simple requete croisee."""
+        return [devis for devis in self.list_devis() if devis.prestation_id == prestation_id]
+
+    def build_from_prestation(self, prestation: Prestation) -> Devis:
+        """Prepare un devis pre-rempli (formation, organisateur, date, lieu,
+        objet, description) a partir d'une prestation. Le devis n'est pas
+        enregistre : c'est un point de depart, toujours modifiable avant
+        validation (meme philosophie que ContractService.build_from_prestation)."""
+        return Devis(
+            prestation_id=prestation.id,
+            formation_id=prestation.artist_id,
+            organization_id=prestation.organization_id,
+            spectacle_nom=prestation.nom,
+            prestation_date=prestation.date_debut,
+            prestation_lieu=prestation.lieu_nom,
+            prestation_adresse=prestation.lieu_adresse,
+            prestation_postal_code=prestation.lieu_postal_code,
+            prestation_city=prestation.lieu_city,
+            comments=prestation.notes,
+        )
 
     def search_devis(self, query: str = "", status: str = "all") -> list[Devis]:
         normalized_query = query.strip().casefold()
@@ -84,6 +109,38 @@ class DevisService:
 
         self.repository.mark_generated(devis_id, str(output))
         return output
+
+    def generate_pdf(self, devis_id: int) -> Path:
+        docx_path = self.generate_docx(devis_id)
+
+        devis = self._require(devis_id)
+        output = self._pdf_output_path(devis)
+        output.parent.mkdir(exist_ok=True)
+
+        PdfConverter().convert(docx_path, output)
+
+        self.repository.mark_pdf_exported(devis_id, str(output))
+        return output
+
+    def open_document(self, devis_id: int) -> Path:
+        devis = self._require(devis_id)
+        path = Path(devis.docx_path or "")
+
+        if not path.exists():
+            raise FileNotFoundError("Aucun document DOCX genere pour ce devis.")
+
+        self._open_path(path)
+        return path
+
+    def open_pdf(self, devis_id: int) -> Path:
+        devis = self._require(devis_id)
+        path = Path(devis.pdf_path or "")
+
+        if not path.exists():
+            raise FileNotFoundError("Aucun PDF genere pour ce devis.")
+
+        self._open_path(path)
+        return path
 
     def preview(self, devis: Devis) -> str:
         self._prepare(devis)
@@ -245,8 +302,17 @@ class DevisService:
         )
         return self.exports_dir / self._safe_filename(filename)
 
+    def _pdf_output_path(self, devis: Devis) -> Path:
+        stem = self._docx_output_path(devis).stem
+        return self.exports_dir / f"{stem}.pdf"
+
     def _safe_filename(self, filename: str) -> str:
         return re.sub(r'[<>:"/\\\\|?*]', "-", filename).strip()
+
+    def _open_path(self, path: Path) -> None:
+        import os
+
+        os.startfile(path)
 
     def _search_text(self, devis: Devis) -> str:
         values = (

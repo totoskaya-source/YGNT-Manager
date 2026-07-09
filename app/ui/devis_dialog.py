@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QDate, QSettings
@@ -10,8 +11,10 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QDoubleSpinBox,
     QFormLayout,
+    QHBoxLayout,
     QLineEdit,
     QMessageBox,
+    QPushButton,
     QScrollArea,
     QTabWidget,
     QTextEdit,
@@ -36,6 +39,7 @@ class DevisDialog(QDialog):
         service: DevisService | None = None,
         artist_service: ArtistService | None = None,
         organization_service: OrganizationService | None = None,
+        initial_devis: Devis | None = None,
     ) -> None:
         super().__init__(parent)
 
@@ -43,7 +47,10 @@ class DevisDialog(QDialog):
         self.artist_service = artist_service or ArtistService()
         self.organization_service = organization_service or OrganizationService()
         self._source_devis = devis
-        self.devis = devis or Devis(devis_number=self.service.next_devis_number())
+        # initial_devis permet de pre-remplir un NOUVEAU devis (ex. depuis une
+        # prestation) sans basculer le dialogue en mode "modification".
+        self._initial_prestation_id = initial_devis.prestation_id if initial_devis else None
+        self.devis = devis or initial_devis or Devis(devis_number=self.service.next_devis_number())
 
         self.setWindowTitle("Modifier un devis" if devis else "Nouveau devis")
         self.setMinimumSize(900, 600)
@@ -72,6 +79,11 @@ class DevisDialog(QDialog):
         self.date_general.dateChanged.connect(self.date_prestation.setDate)
         self.date_prestation.dateChanged.connect(self.date_general.setDate)
 
+        # Actions document (DOCX/PDF) : disponibles uniquement une fois le devis
+        # enregistre (un identifiant est necessaire pour nommer/retrouver les
+        # fichiers), meme ergonomie que le module Contrats.
+        layout.addLayout(self._build_document_actions())
+
         # Les boutons restent en dehors des onglets : toujours visibles, jamais coupes.
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -94,6 +106,7 @@ class DevisDialog(QDialog):
             self._on_organization_selected(self.organization_combo.currentIndex())
 
         self._refresh_preview()
+        self._sync_document_buttons()
 
         # Connectes apres le remplissage initial : un changement manuel de
         # l'utilisateur declenche l'auto-remplissage, pas le chargement du formulaire.
@@ -255,6 +268,28 @@ class DevisDialog(QDialog):
 
         self.tabs.addTab(content, "Apercu")
 
+    def _build_document_actions(self) -> QHBoxLayout:
+        actions = QHBoxLayout()
+        actions.setSpacing(8)
+
+        self.btn_generate_docx = QPushButton("Generer DOCX")
+        self.btn_generate_pdf = QPushButton("Generer PDF")
+        self.btn_open_docx = QPushButton("Ouvrir DOCX")
+        self.btn_open_pdf = QPushButton("Ouvrir PDF")
+
+        self.btn_generate_docx.clicked.connect(self.generate_docx)
+        self.btn_generate_pdf.clicked.connect(self.generate_pdf)
+        self.btn_open_docx.clicked.connect(self.open_docx)
+        self.btn_open_pdf.clicked.connect(self.open_pdf)
+
+        actions.addWidget(self.btn_generate_docx)
+        actions.addWidget(self.btn_generate_pdf)
+        actions.addWidget(self.btn_open_docx)
+        actions.addWidget(self.btn_open_pdf)
+        actions.addStretch()
+
+        return actions
+
     # ===== Listes deroulantes Formation / Organisateur =====
 
     def _reload_formation_choices(self) -> None:
@@ -313,6 +348,101 @@ class DevisDialog(QDialog):
     def _save_geometry(self) -> None:
         self._settings.setValue("geometry", self.saveGeometry())
 
+    # ===== Generation / ouverture DOCX et PDF =====
+
+    def _sync_document_buttons(self) -> None:
+        has_saved_devis = bool(self._source_devis and self._source_devis.id is not None)
+        self.btn_generate_docx.setEnabled(has_saved_devis)
+        self.btn_generate_pdf.setEnabled(has_saved_devis)
+
+        has_docx = bool(
+            self._source_devis
+            and self._source_devis.docx_path
+            and Path(self._source_devis.docx_path).exists()
+        )
+        has_pdf = bool(
+            self._source_devis
+            and self._source_devis.pdf_path
+            and Path(self._source_devis.pdf_path).exists()
+        )
+        self.btn_open_docx.setEnabled(has_docx)
+        self.btn_open_pdf.setEnabled(has_pdf)
+
+    def _refresh_source_devis(self) -> None:
+        if self._source_devis is None or self._source_devis.id is None:
+            return
+
+        refreshed = self.service.get_devis(self._source_devis.id)
+        if refreshed is not None:
+            self._source_devis = refreshed
+            self.devis = refreshed
+
+        self._sync_document_buttons()
+
+    def generate_docx(self) -> None:
+        if self._source_devis is None or self._source_devis.id is None:
+            QMessageBox.information(self, "Generation", "Enregistrez d'abord le devis.")
+            return
+
+        try:
+            preview = self.service.preview(self._build_devis())
+        except ValueError as exc:
+            QMessageBox.warning(self, "Devis incomplet", str(exc))
+            return
+
+        response = QMessageBox.question(
+            self,
+            "Apercu avant generation",
+            f"{preview}\n\nGenerer le document DOCX ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if response != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            path = self.service.generate_docx(self._source_devis.id)
+        except Exception as exc:
+            QMessageBox.warning(self, "Erreur", str(exc))
+            return
+
+        self._refresh_source_devis()
+        QMessageBox.information(self, "DOCX", f"Document cree :\n{path}")
+
+    def generate_pdf(self) -> None:
+        if self._source_devis is None or self._source_devis.id is None:
+            QMessageBox.information(self, "Export PDF", "Enregistrez d'abord le devis.")
+            return
+
+        try:
+            path = self.service.generate_pdf(self._source_devis.id)
+        except Exception as exc:
+            QMessageBox.warning(self, "Erreur", str(exc))
+            return
+
+        self._refresh_source_devis()
+        QMessageBox.information(self, "PDF", f"PDF cree :\n{path}")
+
+    def open_docx(self) -> None:
+        if self._source_devis is None or self._source_devis.id is None:
+            QMessageBox.information(self, "Document", "Enregistrez d'abord le devis.")
+            return
+
+        try:
+            self.service.open_document(self._source_devis.id)
+        except FileNotFoundError as exc:
+            QMessageBox.warning(self, "Document", str(exc))
+
+    def open_pdf(self) -> None:
+        if self._source_devis is None or self._source_devis.id is None:
+            QMessageBox.information(self, "PDF", "Enregistrez d'abord le devis.")
+            return
+
+        try:
+            self.service.open_pdf(self._source_devis.id)
+        except FileNotFoundError as exc:
+            QMessageBox.warning(self, "PDF", str(exc))
+
     # ===== Sauvegarde =====
 
     def save(self) -> None:
@@ -333,34 +463,44 @@ class DevisDialog(QDialog):
 
     def _build_devis(self) -> Devis:
         source = self._source_devis
+        # Base de repli pour tous les champs non exposes par un widget dans ce
+        # dialogue : self.devis contient deja soit le devis en cours de
+        # modification, soit l'instantane initial (ex. depuis une prestation),
+        # soit un devis vierge - jamais None, jamais perdu silencieusement.
+        base = self.devis
 
         devis = Devis(
             id=source.id if source else None,
             devis_number=self.devis_number.text().strip(),
             formation_id=self.formation_combo.currentData(),
             organization_id=self.organization_combo.currentData(),
-            prestation_id=source.prestation_id if source else None,
+            prestation_id=(
+                self._source_devis.prestation_id
+                if self._source_devis
+                else self._initial_prestation_id
+            ),
             # Instantane Producteur : jamais saisi dans ce dialogue, jamais
             # recalcule ici. Un nouveau devis le recoit du Producteur actif
             # dans DevisService.create_devis ; un devis existant conserve tel
             # quel l'instantane deja enregistre (meme principe que Contrats).
-            producteur_id=source.producteur_id if source else None,
-            producteur_nom=source.producteur_nom if source else "",
-            producteur_forme_juridique=source.producteur_forme_juridique if source else "",
-            producteur_adresse=source.producteur_adresse if source else "",
-            producteur_code_postal=source.producteur_code_postal if source else "",
-            producteur_ville=source.producteur_ville if source else "",
-            producteur_siret=source.producteur_siret if source else "",
-            producteur_ape=source.producteur_ape if source else "",
-            producteur_licence=source.producteur_licence if source else "",
-            producteur_tva_intracommunautaire=source.producteur_tva_intracommunautaire if source else "",
-            producteur_telephone=source.producteur_telephone if source else "",
-            producteur_email=source.producteur_email if source else "",
-            producteur_site=source.producteur_site if source else "",
-            producteur_representant=source.producteur_representant if source else "",
-            producteur_fonction=source.producteur_fonction if source else "",
-            producteur_iban=source.producteur_iban if source else "",
-            producteur_bic=source.producteur_bic if source else "",
+            producteur_id=base.producteur_id,
+            producteur_nom=base.producteur_nom,
+            producteur_forme_juridique=base.producteur_forme_juridique,
+            producteur_adresse=base.producteur_adresse,
+            producteur_code_postal=base.producteur_code_postal,
+            producteur_ville=base.producteur_ville,
+            producteur_siret=base.producteur_siret,
+            producteur_ape=base.producteur_ape,
+            producteur_licence=base.producteur_licence,
+            producteur_tva_intracommunautaire=base.producteur_tva_intracommunautaire,
+            producteur_telephone=base.producteur_telephone,
+            producteur_email=base.producteur_email,
+            producteur_site=base.producteur_site,
+            producteur_representant=base.producteur_representant,
+            producteur_fonction=base.producteur_fonction,
+            producteur_iban=base.producteur_iban,
+            producteur_bic=base.producteur_bic,
+            producteur_logo_path=base.producteur_logo_path,
             # Formation : les 4 champs affiches dans ce dialogue sont saisis
             # depuis la fiche Formation selectionnee ; les autres champs de
             # l'instantane (non exposes ici) sont conserves tels quels.
@@ -368,44 +508,44 @@ class DevisDialog(QDialog):
             formation_phone=self.formation_phone.text().strip(),
             formation_email=self.formation_email.text().strip(),
             formation_site_internet=self.formation_site_internet.text().strip(),
-            formation_adresse=source.formation_adresse if source else "",
-            formation_postal_code=source.formation_postal_code if source else "",
-            formation_city=source.formation_city if source else "",
-            formation_siren=source.formation_siren if source else "",
-            formation_siret=source.formation_siret if source else "",
-            formation_ape=source.formation_ape if source else "",
-            formation_licence=source.formation_licence if source else "",
-            formation_iban=source.formation_iban if source else "",
-            formation_bic=source.formation_bic if source else "",
-            formation_social_number=source.formation_social_number if source else "",
-            formation_notes=source.formation_notes if source else "",
+            formation_adresse=base.formation_adresse,
+            formation_postal_code=base.formation_postal_code,
+            formation_city=base.formation_city,
+            formation_siren=base.formation_siren,
+            formation_siret=base.formation_siret,
+            formation_ape=base.formation_ape,
+            formation_licence=base.formation_licence,
+            formation_iban=base.formation_iban,
+            formation_bic=base.formation_bic,
+            formation_social_number=base.formation_social_number,
+            formation_notes=base.formation_notes,
             # Organisateur : idem, seuls les 4 champs affiches sont saisis ici.
             organisateur_structure=self.organisateur_nom.text().strip(),
             organisateur_phone=self.organisateur_phone.text().strip(),
             organisateur_email=self.organisateur_email.text().strip(),
             organisateur_adresse=self.organisateur_adresse.text().strip(),
-            organisateur_forme=source.organisateur_forme if source else "",
-            organisateur_postal_code=source.organisateur_postal_code if source else "",
-            organisateur_city=source.organisateur_city if source else "",
-            organisateur_siret=source.organisateur_siret if source else "",
-            organisateur_ape=source.organisateur_ape if source else "",
-            organisateur_licence=source.organisateur_licence if source else "",
-            organisateur_tva=source.organisateur_tva if source else "",
-            organisateur_representant=source.organisateur_representant if source else "",
-            organisateur_fonction=source.organisateur_fonction if source else "",
-            organisateur_iban=source.organisateur_iban if source else "",
-            organisateur_bic=source.organisateur_bic if source else "",
-            organisateur_site_internet=source.organisateur_site_internet if source else "",
-            organisateur_notes=source.organisateur_notes if source else "",
+            organisateur_forme=base.organisateur_forme,
+            organisateur_postal_code=base.organisateur_postal_code,
+            organisateur_city=base.organisateur_city,
+            organisateur_siret=base.organisateur_siret,
+            organisateur_ape=base.organisateur_ape,
+            organisateur_licence=base.organisateur_licence,
+            organisateur_tva=base.organisateur_tva,
+            organisateur_representant=base.organisateur_representant,
+            organisateur_fonction=base.organisateur_fonction,
+            organisateur_iban=base.organisateur_iban,
+            organisateur_bic=base.organisateur_bic,
+            organisateur_site_internet=base.organisateur_site_internet,
+            organisateur_notes=base.organisateur_notes,
             spectacle_nom=self.objet.text().strip(),
             spectacle_duree=self.duree.text().strip(),
             prestation_date=self.date_prestation.date().toString("dd/MM/yyyy"),
             prestation_lieu=self.lieu.text().strip(),
             prestation_city=self.ville.text().strip(),
-            prestation_adresse=source.prestation_adresse if source else "",
-            prestation_postal_code=source.prestation_postal_code if source else "",
-            prestation_convocation=source.prestation_convocation if source else "",
-            prestation_horaire=source.prestation_horaire if source else "",
+            prestation_adresse=base.prestation_adresse,
+            prestation_postal_code=base.prestation_postal_code,
+            prestation_convocation=base.prestation_convocation,
+            prestation_horaire=base.prestation_horaire,
             montant=self.montant.value(),
             acompte=self.acompte.value(),
             tva=self.tva.text().strip(),
@@ -413,10 +553,13 @@ class DevisDialog(QDialog):
             echeance=self.echeance.text().strip(),
             date_validite=self.date_validite.date().toString("dd/MM/yyyy"),
             observations=self.notes.toPlainText().strip(),
-            comments=source.comments if source else "",
-            hebergement=bool(source.hebergement) if source else False,
-            restauration=bool(source.restauration) if source else False,
-            kilometrage=bool(source.kilometrage) if source else False,
+            # "Description" (imprimee dans le DOCX) : pas de widget dedie dans
+            # ce dialogue pour l'instant, on conserve la valeur deja presente
+            # (ex. notes de la prestation d'origine) sans jamais l'ecraser.
+            comments=base.comments,
+            hebergement=bool(base.hebergement),
+            restauration=bool(base.restauration),
+            kilometrage=bool(base.kilometrage),
             docx_path=source.docx_path if source else "",
             pdf_path=source.pdf_path if source else "",
             status=str(self.status.currentData() or "draft"),

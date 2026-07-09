@@ -9,6 +9,7 @@ from app.contracts.generator import ContractGenerator
 from app.contracts.pdf_converter import PdfConverter
 from app.database.database import PROJECT_ROOT
 from app.models.contract import Contract
+from app.models.devis import Devis
 from app.models.prestation import Prestation
 from app.repositories.contract_repository import ContractRepository
 from app.services.producteur_service import ProducteurService
@@ -34,6 +35,11 @@ class ContractService:
     def list_contracts(self) -> list[Contract]:
         return self.repository.get_all()
 
+    def list_for_prestation(self, prestation_id: int) -> list[Contract]:
+        """Contrats rattaches a une prestation (Dossier), via prestation_id
+        uniquement : aucune duplication de donnee, simple requete croisee."""
+        return [contract for contract in self.list_contracts() if contract.prestation_id == prestation_id]
+
     def build_from_prestation(self, prestation: Prestation) -> Contract:
         """Prepare un contrat pre-rempli (artiste, organisateur, date, lieu) a partir
         d'une prestation. Le contrat n'est pas enregistre : c'est un point de depart,
@@ -47,6 +53,36 @@ class ContractService:
             prestation_adresse=prestation.lieu_adresse,
             prestation_postal_code=prestation.lieu_postal_code,
             prestation_city=prestation.lieu_city,
+        )
+
+    def build_from_devis(self, devis: Devis) -> Contract:
+        """Prepare un contrat pre-rempli (formation, organisateur, objet, date,
+        lieu, conditions financieres) a partir d'un Devis accepte. Le contrat
+        n'est pas enregistre : c'est un nouveau document independant, toujours
+        modifiable avant validation. Le Devis n'est jamais modifie (meme
+        philosophie que build_from_prestation).
+
+        Le Producteur n'est volontairement pas copie depuis le Devis : comme
+        pour tout nouveau contrat, ContractService.create_contract() lui
+        appliquera l'instantane du Producteur actif au moment de la creation
+        (regle deja en vigueur depuis le Sprint 8.6)."""
+        return Contract(
+            prestation_id=devis.prestation_id,
+            artist_id=devis.formation_id,
+            organization_id=devis.organization_id,
+            spectacle_nom=devis.spectacle_nom,
+            spectacle_duree=devis.spectacle_duree,
+            prestation_date=devis.prestation_date,
+            prestation_lieu=devis.prestation_lieu,
+            prestation_adresse=devis.prestation_adresse,
+            prestation_postal_code=devis.prestation_postal_code,
+            prestation_city=devis.prestation_city,
+            comments=devis.comments,
+            cession_montant=devis.montant,
+            cachet_tva=devis.tva,
+            acompte=devis.acompte,
+            mode_paiement=devis.mode_paiement,
+            echeance=devis.echeance,
         )
 
     def search_contracts(self, query: str = "", status: str = "all") -> list[Contract]:

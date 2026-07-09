@@ -18,7 +18,11 @@ from PySide6.QtWidgets import (
 )
 
 from app.models.devis import Devis
+from app.services.artist_service import ArtistService
+from app.services.contract_service import ContractService
 from app.services.devis_service import DevisService
+from app.services.organization_service import OrganizationService
+from app.ui.contract_dialog import ContractDialog
 from app.ui.devis_dialog import DevisDialog
 
 
@@ -34,10 +38,19 @@ class DevisPage(QWidget):
         "Statut",
     )
 
-    def __init__(self, service: DevisService | None = None) -> None:
+    def __init__(
+        self,
+        service: DevisService | None = None,
+        contract_service: ContractService | None = None,
+        artist_service: ArtistService | None = None,
+        organization_service: OrganizationService | None = None,
+    ) -> None:
         super().__init__()
 
         self.service = service or DevisService()
+        self.contract_service = contract_service or ContractService()
+        self.artist_service = artist_service or ArtistService()
+        self.organization_service = organization_service or OrganizationService()
         self._devis: list[Devis] = []
 
         layout = QVBoxLayout(self)
@@ -80,6 +93,7 @@ class DevisPage(QWidget):
         self.btn_add = QPushButton("Nouveau")
         self.btn_edit = QPushButton("Modifier")
         self.btn_delete = QPushButton("Supprimer")
+        self.btn_create_contract = QPushButton("Creer un contrat")
         self.btn_refresh = QPushButton("Actualiser")
 
         self.search = QLineEdit()
@@ -90,11 +104,13 @@ class DevisPage(QWidget):
         self.btn_add.clicked.connect(self.new_devis)
         self.btn_edit.clicked.connect(self.edit_selected_devis)
         self.btn_delete.clicked.connect(self.delete_selected_devis)
+        self.btn_create_contract.clicked.connect(self.create_contract_from_selected_devis)
         self.btn_refresh.clicked.connect(self.refresh_table)
 
         toolbar.addWidget(self.btn_add)
         toolbar.addWidget(self.btn_edit)
         toolbar.addWidget(self.btn_delete)
+        toolbar.addWidget(self.btn_create_contract)
         toolbar.addWidget(self.btn_refresh)
         toolbar.addStretch()
         toolbar.addWidget(self.search, 1)
@@ -160,6 +176,53 @@ class DevisPage(QWidget):
             self.service.delete_devis(devis_id)
             self.refresh_table()
 
+    def create_contract_from_selected_devis(self) -> None:
+        devis_id = self._selected_devis_id()
+
+        if devis_id is None:
+            QMessageBox.information(self, "Creer un contrat", "Selectionnez un devis.")
+            return
+
+        devis = self.service.get_devis(devis_id)
+
+        if devis is None:
+            QMessageBox.warning(self, "Creer un contrat", "Ce devis n'existe plus.")
+            self.refresh_table()
+            return
+
+        if devis.status != "accepted":
+            QMessageBox.information(
+                self,
+                "Creer un contrat",
+                "Seul un devis au statut 'Accepte' peut etre transforme en contrat.",
+            )
+            return
+
+        # Le devis n'est jamais modifie : le contrat est un nouveau document
+        # independant, pre-rempli puis toujours modifiable avant enregistrement.
+        seed = self.contract_service.build_from_devis(devis)
+
+        dialog = ContractDialog(
+            self,
+            initial_contract=seed,
+            service=self.contract_service,
+            artist_service=self.artist_service,
+            organization_service=self.organization_service,
+        )
+
+        if dialog.exec():
+            try:
+                self.contract_service.create_contract(dialog.contract)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Contrat invalide", str(exc))
+                return
+
+            QMessageBox.information(
+                self,
+                "Contrat cree",
+                f"Contrat {dialog.contract.contract_number} cree a partir du devis {devis.devis_number}.",
+            )
+
     def refresh_table(self) -> None:
         self._devis = self.service.search_devis(self.search.text())
         self._fill_table(self._devis)
@@ -216,6 +279,10 @@ class DevisPage(QWidget):
             return None
 
     def _sync_buttons(self) -> None:
-        has_selection = self._selected_devis_id() is not None
+        devis_id = self._selected_devis_id()
+        has_selection = devis_id is not None
         self.btn_edit.setEnabled(has_selection)
         self.btn_delete.setEnabled(has_selection)
+
+        selected = next((d for d in self._devis if d.id == devis_id), None)
+        self.btn_create_contract.setEnabled(bool(selected and selected.status == "accepted"))

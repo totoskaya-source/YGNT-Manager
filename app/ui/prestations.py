@@ -20,9 +20,11 @@ from PySide6.QtWidgets import (
 from app.models.prestation import Prestation
 from app.services.artist_service import ArtistService
 from app.services.contract_service import ContractService
+from app.services.devis_service import DevisService
 from app.services.organization_service import OrganizationService
 from app.services.prestation_service import PrestationService
 from app.ui.contract_dialog import ContractDialog
+from app.ui.devis_dialog import DevisDialog
 from app.ui.prestation_dialog import PrestationDialog
 
 
@@ -45,6 +47,7 @@ class PrestationsPage(QWidget):
         artist_service: ArtistService | None = None,
         organization_service: OrganizationService | None = None,
         contract_service: ContractService | None = None,
+        devis_service: DevisService | None = None,
     ) -> None:
         super().__init__()
 
@@ -52,6 +55,7 @@ class PrestationsPage(QWidget):
         self.artist_service = artist_service or ArtistService()
         self.organization_service = organization_service or OrganizationService()
         self.contract_service = contract_service or ContractService()
+        self.devis_service = devis_service or DevisService()
         self._prestations: list[Prestation] = []
 
         layout = QVBoxLayout(self)
@@ -95,6 +99,7 @@ class PrestationsPage(QWidget):
         self.btn_edit = QPushButton("Modifier")
         self.btn_delete = QPushButton("Supprimer")
         self.btn_create_contract = QPushButton("Creer un contrat")
+        self.btn_create_devis = QPushButton("Creer un devis")
         self.btn_refresh = QPushButton("Actualiser")
 
         self.search = QLineEdit()
@@ -106,12 +111,14 @@ class PrestationsPage(QWidget):
         self.btn_edit.clicked.connect(self.edit_selected_prestation)
         self.btn_delete.clicked.connect(self.delete_selected_prestation)
         self.btn_create_contract.clicked.connect(self.create_contract_from_selected_prestation)
+        self.btn_create_devis.clicked.connect(self.create_devis_from_selected_prestation)
         self.btn_refresh.clicked.connect(self.refresh_table)
 
         toolbar.addWidget(self.btn_add)
         toolbar.addWidget(self.btn_edit)
         toolbar.addWidget(self.btn_delete)
         toolbar.addWidget(self.btn_create_contract)
+        toolbar.addWidget(self.btn_create_devis)
         toolbar.addWidget(self.btn_refresh)
         toolbar.addStretch()
         toolbar.addWidget(self.search, 1)
@@ -124,6 +131,8 @@ class PrestationsPage(QWidget):
             service=self.service,
             artist_service=self.artist_service,
             organization_service=self.organization_service,
+            devis_service=self.devis_service,
+            contract_service=self.contract_service,
         )
 
         if dialog.exec():
@@ -155,6 +164,8 @@ class PrestationsPage(QWidget):
             service=self.service,
             artist_service=self.artist_service,
             organization_service=self.organization_service,
+            devis_service=self.devis_service,
+            contract_service=self.contract_service,
         )
 
         if dialog.exec():
@@ -223,6 +234,43 @@ class PrestationsPage(QWidget):
                 self,
                 "Contrat cree",
                 f"Contrat {dialog.contract.contract_number} cree pour cette prestation.",
+            )
+
+    def create_devis_from_selected_prestation(self) -> None:
+        prestation_id = self._selected_prestation_id()
+
+        if prestation_id is None:
+            QMessageBox.information(self, "Creer un devis", "Selectionnez une prestation.")
+            return
+
+        prestation = self.service.get_prestation(prestation_id)
+
+        if prestation is None:
+            QMessageBox.warning(self, "Creer un devis", "Cette prestation n'existe plus.")
+            self.refresh_table()
+            return
+
+        seed = self.devis_service.build_from_prestation(prestation)
+
+        dialog = DevisDialog(
+            self,
+            initial_devis=seed,
+            service=self.devis_service,
+            artist_service=self.artist_service,
+            organization_service=self.organization_service,
+        )
+
+        if dialog.exec():
+            try:
+                self.devis_service.create_devis(dialog.devis)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Devis invalide", str(exc))
+                return
+
+            QMessageBox.information(
+                self,
+                "Devis cree",
+                f"Devis {dialog.devis.devis_number} cree pour cette prestation.",
             )
 
     def refresh_table(self) -> None:
@@ -294,3 +342,4 @@ class PrestationsPage(QWidget):
         self.btn_edit.setEnabled(has_selection)
         self.btn_delete.setEnabled(has_selection)
         self.btn_create_contract.setEnabled(has_selection)
+        self.btn_create_devis.setEnabled(has_selection)
