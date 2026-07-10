@@ -593,6 +593,126 @@ class MigrationManager:
             "producteur_logo_path": "TEXT",
         })
 
+        self.db.execute("""
+        CREATE TABLE IF NOT EXISTS factures(
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            facture_number TEXT,
+
+            prestation_id INTEGER,
+
+            contract_id INTEGER,
+
+            producteur_id INTEGER,
+
+            formation_id INTEGER,
+
+            organization_id INTEGER,
+
+            producteur_nom TEXT,
+            producteur_forme_juridique TEXT,
+            producteur_adresse TEXT,
+            producteur_code_postal TEXT,
+            producteur_ville TEXT,
+            producteur_siret TEXT,
+            producteur_ape TEXT,
+            producteur_licence TEXT,
+            producteur_tva_intracommunautaire TEXT,
+            producteur_telephone TEXT,
+            producteur_email TEXT,
+            producteur_site TEXT,
+            producteur_representant TEXT,
+            producteur_fonction TEXT,
+            producteur_iban TEXT,
+            producteur_bic TEXT,
+            producteur_logo_path TEXT,
+
+            organisateur_structure TEXT,
+            organisateur_forme TEXT,
+            organisateur_adresse TEXT,
+            organisateur_postal_code TEXT,
+            organisateur_city TEXT,
+            organisateur_siret TEXT,
+            organisateur_phone TEXT,
+            organisateur_email TEXT,
+            organisateur_ape TEXT,
+            organisateur_licence TEXT,
+            organisateur_tva TEXT,
+            organisateur_representant TEXT,
+            organisateur_fonction TEXT,
+            organisateur_iban TEXT,
+            organisateur_bic TEXT,
+            organisateur_site_internet TEXT,
+            organisateur_notes TEXT,
+
+            formation_nom TEXT,
+            formation_adresse TEXT,
+            formation_postal_code TEXT,
+            formation_city TEXT,
+            formation_phone TEXT,
+            formation_email TEXT,
+            formation_site_internet TEXT,
+            formation_siren TEXT,
+            formation_siret TEXT,
+            formation_ape TEXT,
+            formation_licence TEXT,
+            formation_iban TEXT,
+            formation_bic TEXT,
+            formation_social_number TEXT,
+            formation_notes TEXT,
+
+            spectacle_nom TEXT,
+            spectacle_duree TEXT,
+
+            prestation_date TEXT,
+            prestation_lieu TEXT,
+            prestation_adresse TEXT,
+            prestation_postal_code TEXT,
+            prestation_city TEXT,
+            prestation_convocation TEXT,
+            prestation_horaire TEXT,
+
+            montant REAL DEFAULT 0,
+            tva TEXT,
+            acompte REAL DEFAULT 0,
+            total REAL DEFAULT 0,
+            mode_paiement TEXT,
+            echeance TEXT,
+            observations TEXT,
+            comments TEXT,
+
+            docx_path TEXT,
+            pdf_path TEXT,
+
+            status TEXT DEFAULT 'draft',
+
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT,
+            generated_at TEXT,
+
+            FOREIGN KEY(prestation_id)
+                REFERENCES prestations(id)
+                ON DELETE SET NULL,
+
+            FOREIGN KEY(contract_id)
+                REFERENCES contracts(id)
+                ON DELETE SET NULL,
+
+            FOREIGN KEY(producteur_id)
+                REFERENCES producteurs(id)
+                ON DELETE SET NULL,
+
+            FOREIGN KEY(formation_id)
+                REFERENCES artists(id)
+                ON DELETE SET NULL,
+
+            FOREIGN KEY(organization_id)
+                REFERENCES organizations(id)
+                ON DELETE SET NULL
+        )
+        """)
+
     def _ensure_columns(self, table, columns):
         existing = {
             row["name"]
