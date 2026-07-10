@@ -23,6 +23,7 @@ from app.models.contract import Contract
 from app.services.contract_service import ContractService
 from app.ui.contract_dialog import ContractDialog
 from app.ui.dialogs import confirm_delete
+from app.ui.theme import mark_destructive, style_page_title, style_table
 
 
 class ContractsPage(QWidget):
@@ -50,7 +51,7 @@ class ContractsPage(QWidget):
         layout.setSpacing(12)
 
         title = QLabel("Contrats")
-        title.setStyleSheet("font-size: 26px; font-weight: 700;")
+        style_page_title(title)
         layout.addWidget(title)
 
         layout.addLayout(self._build_toolbar())
@@ -66,11 +67,12 @@ class ContractsPage(QWidget):
         self.table.setColumnHidden(0, True)
         self.table.itemDoubleClicked.connect(self.edit_selected_contract)
         self.table.itemSelectionChanged.connect(self._sync_buttons)
+        style_table(self.table)
 
         header = self.table.horizontalHeader()
         header.setSortIndicatorShown(True)
         header.setSectionsClickable(True)
-        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         header.setStretchLastSection(True)
 
         layout.addWidget(self.table)
@@ -86,6 +88,7 @@ class ContractsPage(QWidget):
         self.btn_edit = QPushButton("Modifier")
         self.btn_duplicate = QPushButton("Dupliquer")
         self.btn_delete = QPushButton("Supprimer")
+        mark_destructive(self.btn_delete)
         self.btn_generate = QPushButton("Generer DOCX")
         self.btn_export_pdf = QPushButton("Export PDF")
         self.btn_open = QPushButton("Ouvrir DOCX")

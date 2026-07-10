@@ -4,6 +4,7 @@ from typing import Any
 
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QLabel, QVBoxLayout
 
+from app.ui.theme import style_dialog_title
 from app.version import APP_AUTHOR, APP_COPYRIGHT, APP_NAME, APP_VERSION, APP_WEBSITE
 
 
@@ -17,7 +18,7 @@ class AboutDialog(QDialog):
         layout = QVBoxLayout(self)
 
         title = QLabel(APP_NAME)
-        title.setStyleSheet("font-size: 20px; font-weight: 700;")
+        style_dialog_title(title)
         layout.addWidget(title)
 
         layout.addWidget(QLabel(f"Version {APP_VERSION}"))

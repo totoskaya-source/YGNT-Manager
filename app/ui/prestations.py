@@ -27,6 +27,7 @@ from app.ui.contract_dialog import ContractDialog
 from app.ui.devis_dialog import DevisDialog
 from app.ui.dialogs import confirm_delete
 from app.ui.prestation_dialog import PrestationDialog
+from app.ui.theme import mark_destructive, style_page_title, style_table
 
 
 class PrestationsPage(QWidget):
@@ -64,7 +65,7 @@ class PrestationsPage(QWidget):
         layout.setSpacing(12)
 
         title = QLabel("Prestations")
-        title.setStyleSheet("font-size: 26px; font-weight: 700;")
+        style_page_title(title)
         layout.addWidget(title)
 
         layout.addLayout(self._build_toolbar())
@@ -80,11 +81,12 @@ class PrestationsPage(QWidget):
         self.table.setColumnHidden(0, True)
         self.table.itemDoubleClicked.connect(self.edit_selected_prestation)
         self.table.itemSelectionChanged.connect(self._sync_buttons)
+        style_table(self.table)
 
         header = self.table.horizontalHeader()
         header.setSortIndicatorShown(True)
         header.setSectionsClickable(True)
-        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         header.setStretchLastSection(True)
 
         layout.addWidget(self.table)
@@ -99,6 +101,7 @@ class PrestationsPage(QWidget):
         self.btn_add = QPushButton("Nouveau")
         self.btn_edit = QPushButton("Modifier")
         self.btn_delete = QPushButton("Supprimer")
+        mark_destructive(self.btn_delete)
         self.btn_create_contract = QPushButton("Creer un contrat")
         self.btn_create_devis = QPushButton("Creer un devis")
         self.btn_refresh = QPushButton("Actualiser")

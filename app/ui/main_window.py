@@ -13,6 +13,7 @@ from app.ui.devis import DevisPage
 from app.ui.organisateurs import OrganisateursPage
 from app.ui.parametres import ParametresPage
 from app.ui.prestations import PrestationsPage
+from app.ui.theme import SIDEBAR_WIDTH, style_page_title, style_sidebar
 from app.version import APP_NAME, APP_VERSION
 
 
@@ -29,12 +30,15 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         self.main_layout = QHBoxLayout()
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
         central.setLayout(self.main_layout)
 
         # ===== Menu =====
 
         self.menu = QListWidget()
-        self.menu.setFixedWidth(220)
+        self.menu.setFixedWidth(SIDEBAR_WIDTH)
+        style_sidebar(self.menu)
 
         self.menu.addItems([
             "🏠 Tableau de bord",
@@ -53,10 +57,7 @@ class MainWindow(QMainWindow):
 
         self.page = QLabel("Bienvenue dans YGNT Manager")
         self.page.setAlignment(Qt.AlignCenter)
-        self.page.setStyleSheet("""
-            font-size:28px;
-            font-weight:bold;
-        """)
+        style_page_title(self.page)
 
         self.main_layout.addWidget(self.page)
 
@@ -89,10 +90,7 @@ class MainWindow(QMainWindow):
         else:
             self.page = QLabel(page)
             self.page.setAlignment(Qt.AlignCenter)
-            self.page.setStyleSheet("""
-                font-size:28px;
-                font-weight:bold;
-            """)
+            style_page_title(self.page)
 
         self.main_layout.addWidget(self.page)
         

@@ -6,10 +6,13 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QGroupBox,
     QLineEdit,
     QMessageBox,
+    QScrollArea,
     QTextEdit,
     QVBoxLayout,
+    QWidget,
 )
 
 from app.models.producteur import Producteur
@@ -23,10 +26,12 @@ class ProducteurDialog(QDialog):
         self.producteur: Producteur | None = None
 
         self.setWindowTitle("Modifier un producteur" if producteur else "Nouveau producteur")
-        self.resize(520, 620)
+        self.resize(560, 720)
 
-        layout = QVBoxLayout(self)
-        form = QFormLayout()
+        outer_layout = QVBoxLayout(self)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
 
         self.nom = QLineEdit()
         self.forme_juridique = QLineEdit()
@@ -48,26 +53,45 @@ class ProducteurDialog(QDialog):
         self.notes = QTextEdit()
         self.notes.setFixedHeight(90)
 
-        form.addRow("Nom", self.nom)
-        form.addRow("Forme juridique", self.forme_juridique)
-        form.addRow("Adresse", self.adresse)
-        form.addRow("Code postal", self.postal_code)
-        form.addRow("Ville", self.city)
-        form.addRow("SIRET", self.siret)
-        form.addRow("Code APE", self.ape)
-        form.addRow("Licence", self.licence)
-        form.addRow("TVA intracommunautaire", self.tva)
-        form.addRow("IBAN", self.iban)
-        form.addRow("BIC", self.bic)
-        form.addRow("Represente par", self.representant)
-        form.addRow("Fonction", self.fonction)
-        form.addRow("Logo (chemin du fichier)", self.logo_path)
-        form.addRow("Site internet", self.site_internet)
-        form.addRow("Email", self.email)
-        form.addRow("Telephone", self.phone)
-        form.addRow("Notes", self.notes)
+        general_group = QGroupBox("Informations generales")
+        general_form = QFormLayout(general_group)
+        general_form.addRow("Nom", self.nom)
+        general_form.addRow("Forme juridique", self.forme_juridique)
+        general_form.addRow("Logo (chemin du fichier)", self.logo_path)
+        general_form.addRow("SIRET", self.siret)
+        general_form.addRow("Code APE", self.ape)
+        general_form.addRow("Licence", self.licence)
+        general_form.addRow("TVA intracommunautaire", self.tva)
+        layout.addWidget(general_group)
 
-        layout.addLayout(form)
+        contact_group = QGroupBox("Coordonnees")
+        contact_form = QFormLayout(contact_group)
+        contact_form.addRow("Adresse", self.adresse)
+        contact_form.addRow("Code postal", self.postal_code)
+        contact_form.addRow("Ville", self.city)
+        contact_form.addRow("Email", self.email)
+        contact_form.addRow("Telephone", self.phone)
+        contact_form.addRow("Site internet", self.site_internet)
+        layout.addWidget(contact_group)
+
+        representant_group = QGroupBox("Representant et coordonnees bancaires")
+        representant_form = QFormLayout(representant_group)
+        representant_form.addRow("Represente par", self.representant)
+        representant_form.addRow("Fonction", self.fonction)
+        representant_form.addRow("IBAN", self.iban)
+        representant_form.addRow("BIC", self.bic)
+        layout.addWidget(representant_group)
+
+        notes_group = QGroupBox("Notes")
+        notes_form = QFormLayout(notes_group)
+        notes_form.addRow(self.notes)
+        layout.addWidget(notes_group)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setWidget(content)
+        outer_layout.addWidget(scroll)
 
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -75,7 +99,7 @@ class ProducteurDialog(QDialog):
         )
         self.buttons.accepted.connect(self.save)
         self.buttons.rejected.connect(self.reject)
-        layout.addWidget(self.buttons)
+        outer_layout.addWidget(self.buttons)
 
         if producteur is not None:
             self._fill_form(producteur)

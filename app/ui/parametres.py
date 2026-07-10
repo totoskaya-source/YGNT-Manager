@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QTabWidget, QVBo
 
 from app.ui.about_dialog import AboutDialog
 from app.ui.producteurs import ProducteursPage
+from app.ui.theme import style_page_title
 
 
 class ParametresPage(QWidget):
@@ -17,7 +18,7 @@ class ParametresPage(QWidget):
         header = QHBoxLayout()
 
         title = QLabel("Parametres")
-        title.setStyleSheet("font-size: 26px; font-weight: 700;")
+        style_page_title(title)
         header.addWidget(title)
         header.addStretch()
 

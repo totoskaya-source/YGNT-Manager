@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 from app.models.producteur import Producteur
 from app.services.producteur_service import ProducteurService
 from app.ui.producteur_dialog import ProducteurDialog
+from app.ui.theme import mark_destructive, style_page_title, style_table
 
 
 class ProducteursPage(QWidget):
@@ -45,7 +46,7 @@ class ProducteursPage(QWidget):
         layout.setSpacing(12)
 
         title = QLabel("Producteur")
-        title.setStyleSheet("font-size: 26px; font-weight: 700;")
+        style_page_title(title)
         layout.addWidget(title)
 
         layout.addLayout(self._build_toolbar())
@@ -61,11 +62,12 @@ class ProducteursPage(QWidget):
         self.table.setColumnHidden(0, True)
         self.table.itemDoubleClicked.connect(self.edit_selected_producteur)
         self.table.itemSelectionChanged.connect(self._sync_buttons)
+        style_table(self.table)
 
         header = self.table.horizontalHeader()
         header.setSortIndicatorShown(True)
         header.setSectionsClickable(True)
-        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         header.setStretchLastSection(True)
 
         layout.addWidget(self.table)
@@ -80,6 +82,7 @@ class ProducteursPage(QWidget):
         self.btn_add = QPushButton("Nouveau")
         self.btn_edit = QPushButton("Modifier")
         self.btn_delete = QPushButton("Supprimer")
+        mark_destructive(self.btn_delete)
         self.btn_set_active = QPushButton("Definir comme actif")
         self.btn_refresh = QPushButton("Actualiser")
 

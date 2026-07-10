@@ -21,6 +21,7 @@ from app.models.organization import Organization
 from app.services.organization_service import OrganizationService
 from app.ui.dialogs import confirm_delete
 from app.ui.organization_dialog import OrganizationDialog
+from app.ui.theme import mark_destructive, style_page_title, style_table
 
 
 class OrganisateursPage(QWidget):
@@ -46,7 +47,7 @@ class OrganisateursPage(QWidget):
         layout.setSpacing(12)
 
         title = QLabel("Organisateurs")
-        title.setStyleSheet("font-size: 26px; font-weight: 700;")
+        style_page_title(title)
         layout.addWidget(title)
 
         layout.addLayout(self._build_toolbar())
@@ -62,11 +63,12 @@ class OrganisateursPage(QWidget):
         self.table.setColumnHidden(0, True)
         self.table.itemDoubleClicked.connect(self.edit_selected_organization)
         self.table.itemSelectionChanged.connect(self._sync_buttons)
+        style_table(self.table)
 
         header = self.table.horizontalHeader()
         header.setSortIndicatorShown(True)
         header.setSectionsClickable(True)
-        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         header.setStretchLastSection(True)
 
         layout.addWidget(self.table)
@@ -81,6 +83,7 @@ class OrganisateursPage(QWidget):
         self.btn_add = QPushButton("Nouveau")
         self.btn_edit = QPushButton("Modifier")
         self.btn_delete = QPushButton("Supprimer")
+        mark_destructive(self.btn_delete)
         self.btn_refresh = QPushButton("Actualiser")
 
         self.search = QLineEdit()

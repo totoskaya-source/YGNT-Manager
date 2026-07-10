@@ -35,6 +35,7 @@ from app.services.organization_service import OrganizationService
 from app.services.prestation_service import PrestationService
 from app.ui.contract_dialog import ContractDialog
 from app.ui.devis_dialog import DevisDialog
+from app.ui.theme import style_section_label, style_table
 
 DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 850
@@ -291,7 +292,7 @@ class PrestationDialog(QDialog):
     @staticmethod
     def _section_label(text: str) -> QLabel:
         label = QLabel(text)
-        label.setStyleSheet("font-weight: 700; margin-top: 6px;")
+        style_section_label(label)
         return label
 
     @staticmethod
@@ -304,9 +305,10 @@ class PrestationDialog(QDialog):
         table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setMaximumHeight(140)
+        style_table(table)
 
         header = table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         header.setStretchLastSection(True)
 
         return table

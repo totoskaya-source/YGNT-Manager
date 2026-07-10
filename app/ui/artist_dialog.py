@@ -7,10 +7,13 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QGroupBox,
     QLineEdit,
     QMessageBox,
+    QScrollArea,
     QTextEdit,
     QVBoxLayout,
+    QWidget,
 )
 
 from app.models.artist import Artist
@@ -24,10 +27,12 @@ class ArtistDialog(QDialog):
         self.artist: Artist | None = None
 
         self.setWindowTitle("Modifier une formation" if artist else "Nouvelle formation")
-        self.resize(520, 620)
+        self.resize(560, 720)
 
-        layout = QVBoxLayout(self)
-        form = QFormLayout()
+        outer_layout = QVBoxLayout(self)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
 
         self.legal_name = QLineEdit()
         self.stage_name = QLineEdit()
@@ -59,24 +64,43 @@ class ArtistDialog(QDialog):
         self.instagram = QLineEdit()
         self.youtube = QLineEdit()
 
-        form.addRow("Nom legal", self.legal_name)
-        form.addRow("Nom de scene", self.stage_name)
-        form.addRow("Instrument", self.instrument)
-        form.addRow("Statut", self.status)
-        form.addRow("Email", self.email)
-        form.addRow("Telephone", self.phone)
-        form.addRow("Ville", self.city)
-        form.addRow("Style musical", self.style_musical)
-        form.addRow("Description", self.description)
-        form.addRow("Logo (chemin du fichier)", self.logo_path)
-        form.addRow("Photo principale (chemin du fichier)", self.photo_path)
-        form.addRow("Site internet", self.site_internet)
-        form.addRow("Facebook", self.facebook)
-        form.addRow("Instagram", self.instagram)
-        form.addRow("YouTube", self.youtube)
-        form.addRow("Notes", self.notes)
+        general_group = QGroupBox("Informations generales")
+        general_form = QFormLayout(general_group)
+        general_form.addRow("Nom legal", self.legal_name)
+        general_form.addRow("Nom de scene", self.stage_name)
+        general_form.addRow("Instrument", self.instrument)
+        general_form.addRow("Statut", self.status)
+        layout.addWidget(general_group)
 
-        layout.addLayout(form)
+        contact_group = QGroupBox("Coordonnees")
+        contact_form = QFormLayout(contact_group)
+        contact_form.addRow("Email", self.email)
+        contact_form.addRow("Telephone", self.phone)
+        contact_form.addRow("Ville", self.city)
+        layout.addWidget(contact_group)
+
+        marketing_group = QGroupBox("Presentation et reseaux")
+        marketing_form = QFormLayout(marketing_group)
+        marketing_form.addRow("Style musical", self.style_musical)
+        marketing_form.addRow("Description", self.description)
+        marketing_form.addRow("Logo (chemin du fichier)", self.logo_path)
+        marketing_form.addRow("Photo principale (chemin du fichier)", self.photo_path)
+        marketing_form.addRow("Site internet", self.site_internet)
+        marketing_form.addRow("Facebook", self.facebook)
+        marketing_form.addRow("Instagram", self.instagram)
+        marketing_form.addRow("YouTube", self.youtube)
+        layout.addWidget(marketing_group)
+
+        notes_group = QGroupBox("Notes")
+        notes_form = QFormLayout(notes_group)
+        notes_form.addRow(self.notes)
+        layout.addWidget(notes_group)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setWidget(content)
+        outer_layout.addWidget(scroll)
 
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -84,7 +108,7 @@ class ArtistDialog(QDialog):
         )
         self.buttons.accepted.connect(self.save)
         self.buttons.rejected.connect(self.reject)
-        layout.addWidget(self.buttons)
+        outer_layout.addWidget(self.buttons)
 
         if artist is not None:
             self._fill_form(artist)
