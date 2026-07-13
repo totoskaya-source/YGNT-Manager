@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from app.contracts.pdf_converter import PdfConverter
 from app.database.database import PROJECT_ROOT
 from app.factures.generator import FactureGenerator
 from app.models.contract import Contract
@@ -144,12 +145,34 @@ class FactureService:
         self.repository.mark_generated(facture_id, str(output))
         return output
 
+    def generate_pdf(self, facture_id: int) -> Path:
+        docx_path = self.generate_docx(facture_id)
+
+        facture = self._require(facture_id)
+        output = self._pdf_output_path(facture)
+        output.parent.mkdir(exist_ok=True)
+
+        PdfConverter().convert(docx_path, output)
+
+        self.repository.mark_pdf_exported(facture_id, str(output))
+        return output
+
     def open_document(self, facture_id: int) -> Path:
         facture = self._require(facture_id)
         path = Path(facture.docx_path or "")
 
         if not path.exists():
             raise FileNotFoundError("Aucun document DOCX genere pour cette facture.")
+
+        self._open_path(path)
+        return path
+
+    def open_pdf(self, facture_id: int) -> Path:
+        facture = self._require(facture_id)
+        path = Path(facture.pdf_path or "")
+
+        if not path.exists():
+            raise FileNotFoundError("Aucun PDF genere pour cette facture.")
 
         self._open_path(path)
         return path
@@ -331,6 +354,10 @@ class FactureService:
             f"{facture.spectacle_nom}.docx"
         )
         return self.exports_dir / self._safe_filename(filename)
+
+    def _pdf_output_path(self, facture: Facture) -> Path:
+        stem = self._docx_output_path(facture).stem
+        return self.exports_dir / f"{stem}.pdf"
 
     def _safe_filename(self, filename: str) -> str:
         return re.sub(r'[<>:"/\\\\|?*]', "-", filename).strip()

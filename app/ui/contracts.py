@@ -21,8 +21,10 @@ from PySide6.QtWidgets import (
 
 from app.models.contract import Contract
 from app.services.contract_service import ContractService
+from app.services.facture_service import FactureService
 from app.ui.contract_dialog import ContractDialog
 from app.ui.dialogs import confirm_delete
+from app.ui.facture_dialog import FactureDialog
 from app.ui.theme import mark_destructive, style_page_title, style_table
 
 
@@ -40,10 +42,15 @@ class ContractsPage(QWidget):
         "Generation",
     )
 
-    def __init__(self, service: ContractService | None = None) -> None:
+    def __init__(
+        self,
+        service: ContractService | None = None,
+        facture_service: FactureService | None = None,
+    ) -> None:
         super().__init__()
 
         self.service = service or ContractService()
+        self.facture_service = facture_service or FactureService()
         self._contracts: list[Contract] = []
 
         layout = QVBoxLayout(self)
@@ -93,6 +100,7 @@ class ContractsPage(QWidget):
         self.btn_export_pdf = QPushButton("Export PDF")
         self.btn_open = QPushButton("Ouvrir DOCX")
         self.btn_open_pdf = QPushButton("Ouvrir PDF")
+        self.btn_create_facture = QPushButton("🧾 Creer une facture")
         self.btn_refresh = QPushButton("Actualiser")
         self.btn_history = QPushButton("Historique")
 
@@ -116,6 +124,7 @@ class ContractsPage(QWidget):
         self.btn_export_pdf.clicked.connect(self.export_selected_pdf)
         self.btn_open.clicked.connect(self.open_selected_document)
         self.btn_open_pdf.clicked.connect(self.open_selected_pdf)
+        self.btn_create_facture.clicked.connect(self.create_facture_from_selected_contract)
         self.btn_refresh.clicked.connect(self.refresh_table)
         self.btn_history.clicked.connect(self.show_selected_history)
 
@@ -128,6 +137,7 @@ class ContractsPage(QWidget):
             self.btn_export_pdf,
             self.btn_open,
             self.btn_open_pdf,
+            self.btn_create_facture,
             self.btn_history,
             self.btn_refresh,
         ):
@@ -259,6 +269,38 @@ class ContractsPage(QWidget):
             "PDF ouvert.",
         )
 
+    def create_facture_from_selected_contract(self) -> None:
+        contract = self._selected_contract()
+
+        if contract is None:
+            QMessageBox.information(self, "Creer une facture", "Selectionnez un contrat.")
+            return
+
+        # Le contrat n'est jamais modifie : la facture est un nouveau document
+        # independant, pre-rempli puis toujours modifiable avant enregistrement
+        # (meme principe que Devis/Contrat depuis Prestation).
+        seed = self.facture_service.build_from_contract(contract)
+
+        dialog = FactureDialog(
+            self,
+            initial_facture=seed,
+            service=self.facture_service,
+        )
+
+        if dialog.exec():
+            try:
+                self.facture_service.create_facture(dialog.facture)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Facture invalide", str(exc))
+                return
+
+            QMessageBox.information(
+                self,
+                "Facture creee",
+                f"Facture {dialog.facture.facture_number} creee a partir du contrat "
+                f"{contract.contract_number}.",
+            )
+
     def show_selected_history(self) -> None:
         contract_id = self._selected_contract_id()
         if contract_id is None:
@@ -347,6 +389,7 @@ class ContractsPage(QWidget):
             self.btn_generate,
             self.btn_export_pdf,
             self.btn_history,
+            self.btn_create_facture,
         ):
             button.setEnabled(has_selection)
 

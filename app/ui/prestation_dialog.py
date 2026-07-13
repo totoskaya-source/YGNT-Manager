@@ -27,14 +27,17 @@ from PySide6.QtWidgets import (
 
 from app.models.contract import Contract
 from app.models.devis import Devis
+from app.models.facture import Facture
 from app.models.prestation import Prestation
 from app.services.artist_service import ArtistService
 from app.services.contract_service import ContractService
 from app.services.devis_service import DevisService
+from app.services.facture_service import FactureService
 from app.services.organization_service import OrganizationService
 from app.services.prestation_service import PrestationService
 from app.ui.contract_dialog import ContractDialog
 from app.ui.devis_dialog import DevisDialog
+from app.ui.facture_dialog import FactureDialog
 from app.ui.theme import style_section_label, style_table
 
 DEFAULT_WIDTH = 1200
@@ -61,6 +64,7 @@ class PrestationDialog(QDialog):
         organization_service: OrganizationService | None = None,
         devis_service: DevisService | None = None,
         contract_service: ContractService | None = None,
+        facture_service: FactureService | None = None,
     ) -> None:
         super().__init__(parent)
 
@@ -69,9 +73,11 @@ class PrestationDialog(QDialog):
         self.organization_service = organization_service or OrganizationService()
         self.devis_service = devis_service or DevisService()
         self.contract_service = contract_service or ContractService()
+        self.facture_service = facture_service or FactureService()
         self._source_prestation = prestation
         self._dossier_devis: list[Devis] = []
         self._dossier_contracts: list[Contract] = []
+        self._dossier_factures: list[Facture] = []
         self.prestation = prestation or Prestation(reference=self.service.next_reference())
 
         self.setWindowTitle("Modifier une prestation" if prestation else "Nouvelle prestation")
@@ -274,7 +280,17 @@ class PrestationDialog(QDialog):
         layout.addLayout(contract_actions)
 
         layout.addWidget(self._section_label("Facture"))
-        layout.addWidget(QLabel("Aucune facture (module pas encore implemente)."))
+        self.facture_table = self._build_dossier_table(["Reference", "Statut", "Date", "Montant"])
+        self.facture_table.itemSelectionChanged.connect(self._sync_dossier_buttons)
+        self.facture_table.itemDoubleClicked.connect(self._open_selected_facture)
+        layout.addWidget(self.facture_table)
+
+        facture_actions = QHBoxLayout()
+        self.btn_open_facture = QPushButton("Ouvrir")
+        self.btn_open_facture.clicked.connect(self._open_selected_facture)
+        facture_actions.addWidget(self.btn_open_facture)
+        facture_actions.addStretch()
+        layout.addLayout(facture_actions)
 
         layout.addWidget(self._section_label("Paiement"))
         layout.addWidget(QLabel("Aucun paiement (module pas encore implemente)."))
@@ -296,10 +312,11 @@ class PrestationDialog(QDialog):
         return label
 
     @staticmethod
-    def _build_dossier_table() -> QTableWidget:
+    def _build_dossier_table(headers: list[str] | None = None) -> QTableWidget:
+        headers = headers or ["Reference", "Statut", "Date"]
         table = QTableWidget()
-        table.setColumnCount(3)
-        table.setHorizontalHeaderLabels(["Reference", "Statut", "Date"])
+        table.setColumnCount(len(headers))
+        table.setHorizontalHeaderLabels(headers)
         table.setAlternatingRowColors(True)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -404,10 +421,12 @@ class PrestationDialog(QDialog):
     def _refresh_dossier(self) -> None:
         self._dossier_devis = []
         self._dossier_contracts = []
+        self._dossier_factures = []
 
         if self._source_prestation is not None and self._source_prestation.id is not None:
             self._dossier_devis = self.devis_service.list_for_prestation(self._source_prestation.id)
             self._dossier_contracts = self.contract_service.list_for_prestation(self._source_prestation.id)
+            self._dossier_factures = self.facture_service.list_for_prestation(self._source_prestation.id)
 
         self.devis_table.setRowCount(len(self._dossier_devis))
         for row, devis in enumerate(self._dossier_devis):
@@ -421,8 +440,16 @@ class PrestationDialog(QDialog):
             self.contract_table.setItem(row, 1, self._dossier_item(contract.status_label))
             self.contract_table.setItem(row, 2, self._dossier_item(contract.prestation_date or contract.event_date))
 
+        self.facture_table.setRowCount(len(self._dossier_factures))
+        for row, facture in enumerate(self._dossier_factures):
+            self.facture_table.setItem(row, 0, self._dossier_item(facture.facture_number))
+            self.facture_table.setItem(row, 1, self._dossier_item(facture.status_label))
+            self.facture_table.setItem(row, 2, self._dossier_item(facture.prestation_date))
+            self.facture_table.setItem(row, 3, self._dossier_item(f"{float(facture.montant or 0):.2f} EUR"))
+
         self.devis_table.resizeColumnsToContents()
         self.contract_table.resizeColumnsToContents()
+        self.facture_table.resizeColumnsToContents()
         self._sync_dossier_buttons()
 
     @staticmethod
@@ -434,6 +461,7 @@ class PrestationDialog(QDialog):
     def _sync_dossier_buttons(self) -> None:
         self.btn_open_devis.setEnabled(self.devis_table.currentRow() >= 0)
         self.btn_open_contract.setEnabled(self.contract_table.currentRow() >= 0)
+        self.btn_open_facture.setEnabled(self.facture_table.currentRow() >= 0)
 
     def _open_selected_devis(self, *_args: Any) -> None:
         row = self.devis_table.currentRow()
@@ -475,6 +503,30 @@ class PrestationDialog(QDialog):
                 self.contract_service.update_contract(dialog.contract)
             except ValueError as exc:
                 QMessageBox.warning(self, "Contrat invalide", str(exc))
+                return
+
+            self._refresh_dossier()
+
+    def _open_selected_facture(self, *_args: Any) -> None:
+        # Consultation uniquement : ouvre toujours une facture deja existante,
+        # jamais de creation depuis le Dossier (meme principe que Devis/Contrat).
+        row = self.facture_table.currentRow()
+        if row < 0 or row >= len(self._dossier_factures):
+            return
+
+        dialog = FactureDialog(
+            self,
+            facture=self._dossier_factures[row],
+            service=self.facture_service,
+            artist_service=self.artist_service,
+            organization_service=self.organization_service,
+        )
+
+        if dialog.exec():
+            try:
+                self.facture_service.update_facture(dialog.facture)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Facture invalide", str(exc))
                 return
 
             self._refresh_dossier()

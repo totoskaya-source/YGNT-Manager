@@ -82,9 +82,9 @@ class FactureDialog(QDialog):
         self.date_general.dateChanged.connect(self.date_prestation.setDate)
         self.date_prestation.dateChanged.connect(self.date_general.setDate)
 
-        # Actions document (DOCX) : disponibles uniquement une fois la facture
-        # enregistree (un identifiant est necessaire pour nommer/retrouver le
-        # fichier), meme ergonomie que le module Devis.
+        # Actions document (DOCX/PDF) : disponibles uniquement une fois la facture
+        # enregistree (un identifiant est necessaire pour nommer/retrouver les
+        # fichiers), meme ergonomie que le module Devis.
         layout.addLayout(self._build_document_actions())
 
         # Les boutons restent en dehors des onglets : toujours visibles, jamais coupes.
@@ -287,13 +287,19 @@ class FactureDialog(QDialog):
         actions.setSpacing(8)
 
         self.btn_generate_docx = QPushButton("Generer DOCX")
+        self.btn_generate_pdf = QPushButton("Generer PDF")
         self.btn_open_docx = QPushButton("Ouvrir DOCX")
+        self.btn_open_pdf = QPushButton("Ouvrir PDF")
 
         self.btn_generate_docx.clicked.connect(self.generate_docx)
+        self.btn_generate_pdf.clicked.connect(self.generate_pdf)
         self.btn_open_docx.clicked.connect(self.open_docx)
+        self.btn_open_pdf.clicked.connect(self.open_pdf)
 
         actions.addWidget(self.btn_generate_docx)
+        actions.addWidget(self.btn_generate_pdf)
         actions.addWidget(self.btn_open_docx)
+        actions.addWidget(self.btn_open_pdf)
         actions.addStretch()
 
         return actions
@@ -361,18 +367,25 @@ class FactureDialog(QDialog):
     def _save_geometry(self) -> None:
         self._settings.setValue("geometry", self.saveGeometry())
 
-    # ===== Generation / ouverture DOCX =====
+    # ===== Generation / ouverture DOCX et PDF =====
 
     def _sync_document_buttons(self) -> None:
         has_saved_facture = bool(self._source_facture and self._source_facture.id is not None)
         self.btn_generate_docx.setEnabled(has_saved_facture)
+        self.btn_generate_pdf.setEnabled(has_saved_facture)
 
         has_docx = bool(
             self._source_facture
             and self._source_facture.docx_path
             and Path(self._source_facture.docx_path).exists()
         )
+        has_pdf = bool(
+            self._source_facture
+            and self._source_facture.pdf_path
+            and Path(self._source_facture.pdf_path).exists()
+        )
         self.btn_open_docx.setEnabled(has_docx)
+        self.btn_open_pdf.setEnabled(has_pdf)
 
     def _refresh_source_facture(self) -> None:
         if self._source_facture is None or self._source_facture.id is None:
@@ -415,6 +428,20 @@ class FactureDialog(QDialog):
         self._refresh_source_facture()
         QMessageBox.information(self, "DOCX", f"Document cree :\n{path}")
 
+    def generate_pdf(self) -> None:
+        if self._source_facture is None or self._source_facture.id is None:
+            QMessageBox.information(self, "Export PDF", "Enregistrez d'abord la facture.")
+            return
+
+        try:
+            path = self.service.generate_pdf(self._source_facture.id)
+        except Exception as exc:
+            QMessageBox.warning(self, "Erreur", str(exc))
+            return
+
+        self._refresh_source_facture()
+        QMessageBox.information(self, "PDF", f"PDF cree :\n{path}")
+
     def open_docx(self) -> None:
         if self._source_facture is None or self._source_facture.id is None:
             QMessageBox.information(self, "Document", "Enregistrez d'abord la facture.")
@@ -424,6 +451,16 @@ class FactureDialog(QDialog):
             self.service.open_document(self._source_facture.id)
         except FileNotFoundError as exc:
             QMessageBox.warning(self, "Document", str(exc))
+
+    def open_pdf(self) -> None:
+        if self._source_facture is None or self._source_facture.id is None:
+            QMessageBox.information(self, "PDF", "Enregistrez d'abord la facture.")
+            return
+
+        try:
+            self.service.open_pdf(self._source_facture.id)
+        except FileNotFoundError as exc:
+            QMessageBox.warning(self, "PDF", str(exc))
 
     # ===== Sauvegarde =====
 

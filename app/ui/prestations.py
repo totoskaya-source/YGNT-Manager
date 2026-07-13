@@ -21,11 +21,13 @@ from app.models.prestation import Prestation
 from app.services.artist_service import ArtistService
 from app.services.contract_service import ContractService
 from app.services.devis_service import DevisService
+from app.services.facture_service import FactureService
 from app.services.organization_service import OrganizationService
 from app.services.prestation_service import PrestationService
 from app.ui.contract_dialog import ContractDialog
 from app.ui.devis_dialog import DevisDialog
 from app.ui.dialogs import confirm_delete
+from app.ui.facture_dialog import FactureDialog
 from app.ui.prestation_dialog import PrestationDialog
 from app.ui.theme import mark_destructive, style_page_title, style_table
 
@@ -50,6 +52,7 @@ class PrestationsPage(QWidget):
         organization_service: OrganizationService | None = None,
         contract_service: ContractService | None = None,
         devis_service: DevisService | None = None,
+        facture_service: FactureService | None = None,
     ) -> None:
         super().__init__()
 
@@ -58,6 +61,7 @@ class PrestationsPage(QWidget):
         self.organization_service = organization_service or OrganizationService()
         self.contract_service = contract_service or ContractService()
         self.devis_service = devis_service or DevisService()
+        self.facture_service = facture_service or FactureService()
         self._prestations: list[Prestation] = []
 
         layout = QVBoxLayout(self)
@@ -104,6 +108,7 @@ class PrestationsPage(QWidget):
         mark_destructive(self.btn_delete)
         self.btn_create_contract = QPushButton("Creer un contrat")
         self.btn_create_devis = QPushButton("Creer un devis")
+        self.btn_create_facture = QPushButton("🧾 Creer une facture")
         self.btn_refresh = QPushButton("Actualiser")
 
         self.search = QLineEdit()
@@ -116,6 +121,7 @@ class PrestationsPage(QWidget):
         self.btn_delete.clicked.connect(self.delete_selected_prestation)
         self.btn_create_contract.clicked.connect(self.create_contract_from_selected_prestation)
         self.btn_create_devis.clicked.connect(self.create_devis_from_selected_prestation)
+        self.btn_create_facture.clicked.connect(self.create_facture_from_selected_prestation)
         self.btn_refresh.clicked.connect(self.refresh_table)
 
         toolbar.addWidget(self.btn_add)
@@ -123,6 +129,7 @@ class PrestationsPage(QWidget):
         toolbar.addWidget(self.btn_delete)
         toolbar.addWidget(self.btn_create_contract)
         toolbar.addWidget(self.btn_create_devis)
+        toolbar.addWidget(self.btn_create_facture)
         toolbar.addWidget(self.btn_refresh)
         toolbar.addStretch()
         toolbar.addWidget(self.search, 1)
@@ -137,6 +144,7 @@ class PrestationsPage(QWidget):
             organization_service=self.organization_service,
             devis_service=self.devis_service,
             contract_service=self.contract_service,
+            facture_service=self.facture_service,
         )
 
         if dialog.exec():
@@ -170,6 +178,7 @@ class PrestationsPage(QWidget):
             organization_service=self.organization_service,
             devis_service=self.devis_service,
             contract_service=self.contract_service,
+            facture_service=self.facture_service,
         )
 
         if dialog.exec():
@@ -269,6 +278,46 @@ class PrestationsPage(QWidget):
                 f"Devis {dialog.devis.devis_number} cree pour cette prestation.",
             )
 
+    def create_facture_from_selected_prestation(self) -> None:
+        prestation_id = self._selected_prestation_id()
+
+        if prestation_id is None:
+            QMessageBox.information(self, "Creer une facture", "Selectionnez une prestation.")
+            return
+
+        prestation = self.service.get_prestation(prestation_id)
+
+        if prestation is None:
+            QMessageBox.warning(self, "Creer une facture", "Cette prestation n'existe plus.")
+            self.refresh_table()
+            return
+
+        # La prestation n'est jamais modifiee : la facture est un nouveau
+        # document independant, pre-rempli puis toujours modifiable avant
+        # enregistrement (meme principe que Devis/Contrat depuis Prestation).
+        seed = self.facture_service.build_from_prestation(prestation)
+
+        dialog = FactureDialog(
+            self,
+            initial_facture=seed,
+            service=self.facture_service,
+            artist_service=self.artist_service,
+            organization_service=self.organization_service,
+        )
+
+        if dialog.exec():
+            try:
+                self.facture_service.create_facture(dialog.facture)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Facture invalide", str(exc))
+                return
+
+            QMessageBox.information(
+                self,
+                "Facture creee",
+                f"Facture {dialog.facture.facture_number} creee pour cette prestation.",
+            )
+
     def refresh_table(self) -> None:
         self._prestations = self.service.search_prestations(self.search.text())
         self._fill_table(self._prestations)
@@ -339,3 +388,4 @@ class PrestationsPage(QWidget):
         self.btn_delete.setEnabled(has_selection)
         self.btn_create_contract.setEnabled(has_selection)
         self.btn_create_devis.setEnabled(has_selection)
+        self.btn_create_facture.setEnabled(has_selection)
