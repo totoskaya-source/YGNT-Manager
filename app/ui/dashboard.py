@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
     QGridLayout,
     QGroupBox,
@@ -16,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.services import stats_helper
 from app.services.contract_service import ContractService
 from app.services.devis_service import DevisService
 from app.services.facture_service import FactureService
@@ -247,23 +247,13 @@ class DashboardPage(QWidget):
         self.greeting_label.setText("Bienvenue sur YGNT Manager")
 
     def _refresh_next_prestation(self, prestations: list[Any]) -> None:
-        today = QDate.currentDate()
-        upcoming = []
-
-        for prestation in prestations:
-            if prestation.statut == "annulee":
-                continue
-
-            date = QDate.fromString(prestation.date_debut, "dd/MM/yyyy")
-            if date.isValid() and date >= today:
-                upcoming.append((date, prestation))
+        upcoming = stats_helper.upcoming_prestations(prestations, limit=1)
 
         if not upcoming:
             self.next_prestation_label.setText("Aucune prestation planifiee.")
             return
 
-        upcoming.sort(key=lambda entry: entry[0])
-        _, prestation = upcoming[0]
+        prestation = upcoming[0]
         lieu = prestation.lieu_nom or prestation.lieu_city
         details = " - ".join(part for part in (prestation.date_debut, prestation.nom, lieu) if part)
         self.next_prestation_label.setText(details)
@@ -283,18 +273,12 @@ class DashboardPage(QWidget):
         self.indicator_tiles["Paiements"].setText(str(len(paiements)))
 
     def _refresh_billing(self, factures: list[Any], paiements: list[Any]) -> None:
-        # Meme regle que PaiementService.total_paid() (paiements 'cancelled'
-        # exclus), appliquee ici globalement plutot que facture par facture
-        # pour eviter une requete SQL par facture (cf. "aucune requete inutile").
-        ca_facture = sum(float(facture.montant or 0) for facture in factures if facture.status != "cancelled")
-        ca_encaisse = sum(float(paiement.montant or 0) for paiement in paiements if paiement.status != "cancelled")
-        factures_impayees = sum(1 for facture in factures if facture.status in ("pending", "partial"))
-        paiements_en_attente = sum(1 for paiement in paiements if paiement.status == "pending")
-
-        self.billing_tiles["CA facture"].setText(f"{ca_facture:.2f} EUR")
-        self.billing_tiles["CA encaisse"].setText(f"{ca_encaisse:.2f} EUR")
-        self.billing_tiles["Factures impayees"].setText(str(factures_impayees))
-        self.billing_tiles["Paiements en attente"].setText(str(paiements_en_attente))
+        # Calculs partages avec la page Statistiques (cf. app/services/stats_helper.py) :
+        # jamais recalcules deux fois.
+        self.billing_tiles["CA facture"].setText(f"{stats_helper.ca_facture(factures):.2f} EUR")
+        self.billing_tiles["CA encaisse"].setText(f"{stats_helper.ca_encaisse(paiements):.2f} EUR")
+        self.billing_tiles["Factures impayees"].setText(str(stats_helper.factures_impayees_count(factures)))
+        self.billing_tiles["Paiements en attente"].setText(str(stats_helper.paiements_en_attente_count(paiements)))
 
     def _refresh_activity(
         self,

@@ -16,6 +16,7 @@ from app.ui.organisateurs import OrganisateursPage
 from app.ui.paiements import PaiementsPage
 from app.ui.parametres import ParametresPage
 from app.ui.prestations import PrestationsPage
+from app.ui.statistiques import StatistiquesPage
 from app.ui.theme import SIDEBAR_WIDTH, style_page_title, style_sidebar
 from app.version import APP_NAME, APP_VERSION
 
@@ -45,14 +46,15 @@ class MainWindow(QMainWindow):
 
         self.menu.addItems([
             "🏠 Tableau de bord",
-            "🎤 Prestations",
+            "📊 Statistiques",
+            "🎭 Prestations",
             "👥 Formations",
             "🏢 Organisateurs",
             "📄 Devis",
-            "📄 Contrats",
+            "📃 Contrats",
             "🧾 Factures",
             "💳 Paiements",
-            "⚙️ Paramètres",
+            "⚙ Paramètres",
         ])
 
         self.main_layout.addWidget(self.menu)
@@ -75,6 +77,9 @@ class MainWindow(QMainWindow):
 
         if "Tableau de bord" in page:
             self.page = DashboardPage()
+
+        elif "Statistiques" in page:
+            self.page = StatistiquesPage()
 
         elif "Prestations" in page:
             self.page = PrestationsPage()
