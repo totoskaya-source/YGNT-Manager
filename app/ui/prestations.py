@@ -28,6 +28,7 @@ from app.ui.contract_dialog import ContractDialog
 from app.ui.devis_dialog import DevisDialog
 from app.ui.dialogs import confirm_delete
 from app.ui.facture_dialog import FactureDialog
+from app.ui.intermipaie_dialog import IntermiPaieDialog
 from app.ui.prestation_dialog import PrestationDialog
 from app.ui.theme import mark_destructive, style_page_title, style_table
 
@@ -108,7 +109,8 @@ class PrestationsPage(QWidget):
         mark_destructive(self.btn_delete)
         self.btn_create_contract = QPushButton("Creer un contrat")
         self.btn_create_devis = QPushButton("Creer un devis")
-        self.btn_create_facture = QPushButton("🧾 Creer une facture")
+        self.btn_create_facture = QPushButton("Creer une facture")
+        self.btn_intermipaie = QPushButton("Calculer avec IntermiPaie")
         self.btn_refresh = QPushButton("Actualiser")
 
         self.search = QLineEdit()
@@ -122,6 +124,7 @@ class PrestationsPage(QWidget):
         self.btn_create_contract.clicked.connect(self.create_contract_from_selected_prestation)
         self.btn_create_devis.clicked.connect(self.create_devis_from_selected_prestation)
         self.btn_create_facture.clicked.connect(self.create_facture_from_selected_prestation)
+        self.btn_intermipaie.clicked.connect(self.open_intermipaie_for_selected_prestation)
         self.btn_refresh.clicked.connect(self.refresh_table)
 
         toolbar.addWidget(self.btn_add)
@@ -130,6 +133,7 @@ class PrestationsPage(QWidget):
         toolbar.addWidget(self.btn_create_contract)
         toolbar.addWidget(self.btn_create_devis)
         toolbar.addWidget(self.btn_create_facture)
+        toolbar.addWidget(self.btn_intermipaie)
         toolbar.addWidget(self.btn_refresh)
         toolbar.addStretch()
         toolbar.addWidget(self.search, 1)
@@ -282,6 +286,31 @@ class PrestationsPage(QWidget):
         )
         dialog.exec()
 
+    def open_intermipaie_for_selected_prestation(self) -> None:
+        prestation_id = self._selected_prestation_id()
+
+        if prestation_id is None:
+            QMessageBox.information(self, "IntermiPaie", "Selectionnez une prestation.")
+            return
+
+        prestation = self.service.get_prestation(prestation_id)
+
+        if prestation is None:
+            QMessageBox.warning(self, "IntermiPaie", "Cette prestation n'existe plus.")
+            self.refresh_table()
+            return
+
+        dialog = IntermiPaieDialog(
+            self,
+            prestation=prestation,
+            artist_service=self.artist_service,
+            organization_service=self.organization_service,
+            contract_service=self.contract_service,
+            devis_service=self.devis_service,
+            facture_service=self.facture_service,
+        )
+        dialog.exec()
+
     def refresh_table(self) -> None:
         self._prestations = self.service.search_prestations(self.search.text())
         self._fill_table(self._prestations)
@@ -353,3 +382,4 @@ class PrestationsPage(QWidget):
         self.btn_create_contract.setEnabled(has_selection)
         self.btn_create_devis.setEnabled(has_selection)
         self.btn_create_facture.setEnabled(has_selection)
+        self.btn_intermipaie.setEnabled(has_selection)

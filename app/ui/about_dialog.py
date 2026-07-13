@@ -13,7 +13,7 @@ class AboutDialog(QDialog):
         super().__init__(parent)
 
         self.setWindowTitle("A propos")
-        self.setFixedSize(360, 220)
+        self.setFixedSize(360, 240)
 
         layout = QVBoxLayout(self)
 
@@ -27,7 +27,9 @@ class AboutDialog(QDialog):
         if APP_WEBSITE:
             layout.addWidget(QLabel(f"Site internet : {APP_WEBSITE}"))
 
-        layout.addWidget(QLabel(APP_COPYRIGHT))
+        copyright_label = QLabel(APP_COPYRIGHT)
+        copyright_label.setWordWrap(True)
+        layout.addWidget(copyright_label)
         layout.addStretch()
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)

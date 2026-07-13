@@ -54,7 +54,7 @@ class MainWindow(QMainWindow):
             "📃 Contrats",
             "🧾 Factures",
             "💳 Paiements",
-            "⚙ Paramètres",
+            "⚙ Parametres",
         ])
 
         self.main_layout.addWidget(self.menu)
@@ -102,7 +102,7 @@ class MainWindow(QMainWindow):
         elif "Organisateurs" in page:
             self.page = OrganisateursPage()
 
-        elif "Paramètres" in page:
+        elif "Parametres" in page:
             self.page = ParametresPage()
 
         else:

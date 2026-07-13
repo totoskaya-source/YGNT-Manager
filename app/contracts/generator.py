@@ -1,5 +1,4 @@
 from pathlib import Path
-import os
 
 from app.documents.placeholder_engine import PlaceholderEngine
 
@@ -32,7 +31,6 @@ class ContractGenerator:
         self.replace_in_document(doc, values)
 
         doc.save(output_path)
-        os.startfile(output_path)
 
     def replace_in_document(self, doc, values):
         PlaceholderEngine.replace_in_document(doc, values)

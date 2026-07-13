@@ -121,26 +121,40 @@ class PaiementService:
             2,
         )
 
-    def solde_restant(self, facture_id: int) -> float:
-        """Montant restant du sur cette facture (peut etre negatif en cas de
-        trop-percu). Lecture seule : ne modifie jamais la facture."""
+    def _credite(self, facture_id: int) -> float:
+        """Total deja couvert sur cette facture : l'acompte indique sur la
+        facture (jamais un paiement enregistre automatiquement) plus les
+        paiements effectivement enregistres. Base commune a solde_restant()
+        et compute_facture_status() pour que les deux restent toujours
+        coherents entre eux (Sprint 12.7)."""
         facture = self._require_facture(facture_id)
-        return round(float(facture.montant or 0) - self.total_paid(facture_id), 2)
+        return float(facture.acompte or 0) + self.total_paid(facture_id)
+
+    def solde_restant(self, facture_id: int) -> float:
+        """Montant reellement restant du sur cette facture : montant TTC
+        diminue de l'acompte deja precise sur la facture ET des paiements
+        enregistres. Ne descend jamais sous zero (un trop-percu eventuel
+        n'apparait pas ici en negatif). Lecture seule : ne modifie jamais la
+        facture."""
+        facture = self._require_facture(facture_id)
+        montant = float(facture.montant or 0)
+        return round(max(montant - self._credite(facture_id), 0.0), 2)
 
     def compute_facture_status(self, facture_id: int) -> str:
         """Determine automatiquement l'etat de reglement d'une facture a
-        partir de ses paiements : aucun paiement -> 'pending' (En attente),
-        paiement partiel -> 'partial' (Partiel), totalite reglee -> 'paid'
-        (Paye). Calcul pur, en lecture seule : ne modifie JAMAIS la facture
+        partir de l'acompte et des paiements : rien de couvert -> 'pending'
+        (En attente), couverture partielle -> 'partial' (Partiel), montant
+        TTC entierement couvert (acompte + paiements) -> 'paid' (Paye).
+        Calcul pur, en lecture seule : ne modifie JAMAIS la facture
         elle-meme. Utilise par _sync_facture_status() pour appliquer
         automatiquement le resultat (jamais duplique)."""
         facture = self._require_facture(facture_id)
         montant = float(facture.montant or 0)
-        total_paid = self.total_paid(facture_id)
+        credite = self._credite(facture_id)
 
-        if total_paid <= 0:
+        if credite <= 0:
             return "pending"
-        if total_paid < montant:
+        if credite < montant:
             return "partial"
         return "paid"
 

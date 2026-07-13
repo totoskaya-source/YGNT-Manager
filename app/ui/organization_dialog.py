@@ -95,6 +95,8 @@ class OrganizationDialog(QDialog):
             QDialogButtonBox.StandardButton.Save
             | QDialogButtonBox.StandardButton.Cancel
         )
+        self.buttons.button(QDialogButtonBox.StandardButton.Save).setText("Enregistrer")
+        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Annuler")
         self.buttons.accepted.connect(self.save)
         self.buttons.rejected.connect(self.reject)
         outer_layout.addWidget(self.buttons)

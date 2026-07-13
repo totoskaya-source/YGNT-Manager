@@ -9,6 +9,7 @@ from app.database.database import PROJECT_ROOT
 from app.devis.generator import DevisGenerator
 from app.models.devis import Devis
 from app.models.prestation import Prestation
+from app.paths import resource_path
 from app.repositories.devis_repository import DevisRepository
 from app.services.producteur_service import ProducteurService
 
@@ -29,7 +30,7 @@ class DevisService:
     ) -> None:
         self.repository = repository or DevisRepository()
         self.producteur_service = producteur_service or ProducteurService()
-        self.template_path = PROJECT_ROOT / "templates" / "devis.docx"
+        self.template_path = resource_path("templates", "devis.docx")
         self.exports_dir = PROJECT_ROOT / "exports"
 
     def list_devis(self) -> list[Devis]:

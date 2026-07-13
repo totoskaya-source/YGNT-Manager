@@ -24,10 +24,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.contracts.pdf_converter import PdfConversionTimeoutError
 from app.models.contract import Contract
 from app.services.artist_service import ArtistService
 from app.services.contract_service import ContractService
 from app.services.organization_service import OrganizationService
+from app.ui.background_task import run_task_with_progress
 from app.ui.dialogs import notify_success, open_folder
 
 DEFAULT_WIDTH = 1200
@@ -502,14 +504,31 @@ class ContractDialog(QDialog):
             QMessageBox.information(self, "Export PDF", "Enregistrez d'abord le contrat.")
             return
 
-        try:
-            self.service.export_pdf(self._source_contract.id)
-        except Exception as exc:
-            QMessageBox.warning(self, "Erreur", str(exc))
-            return
+        contract_id = self._source_contract.id
 
-        self._refresh_source_contract()
-        notify_success(self, "Document PDF genere.")
+        def on_success(_result: object) -> None:
+            self._refresh_source_contract()
+            notify_success(self, "Document PDF genere.")
+
+        def on_error(exc: Exception) -> None:
+            if isinstance(exc, PdfConversionTimeoutError):
+                QMessageBox.warning(
+                    self,
+                    "Generation PDF",
+                    "La generation du PDF semble bloquee.\n\n"
+                    "Veuillez verifier qu'aucune fenetre Microsoft Word "
+                    "n'attend votre intervention.",
+                )
+                return
+            QMessageBox.warning(self, "Erreur", str(exc))
+
+        run_task_with_progress(
+            self,
+            "Generation du PDF...\nVeuillez patienter.",
+            lambda: self.service.export_pdf(contract_id),
+            on_success,
+            on_error,
+        )
 
     def open_docx(self) -> None:
         if self._source_contract is None or self._source_contract.id is None:

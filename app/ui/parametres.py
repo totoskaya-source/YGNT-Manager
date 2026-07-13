@@ -29,7 +29,7 @@ class ParametresPage(QWidget):
         layout.addLayout(header)
 
         tabs = QTabWidget()
-        tabs.addTab(ProducteursPage(), "Producteur")
+        tabs.addTab(ProducteursPage(), "Producteurs")
         layout.addWidget(tabs)
 
     def show_about(self) -> None:

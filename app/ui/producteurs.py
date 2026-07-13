@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from app.models.producteur import Producteur
 from app.services.producteur_service import ProducteurService
+from app.ui.dialogs import confirm_delete
 from app.ui.producteur_dialog import ProducteurDialog
 from app.ui.theme import mark_destructive, style_page_title, style_table
 
@@ -45,7 +46,7 @@ class ProducteursPage(QWidget):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
 
-        title = QLabel("Producteur")
+        title = QLabel("Producteurs")
         style_page_title(title)
         layout.addWidget(title)
 
@@ -154,15 +155,7 @@ class ProducteursPage(QWidget):
         producteur = self.service.get_producteur(producteur_id)
         label = producteur.nom if producteur and producteur.nom else "ce producteur"
 
-        response = QMessageBox.question(
-            self,
-            "Confirmation",
-            f"Supprimer {label} ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-
-        if response == QMessageBox.StandardButton.Yes:
+        if confirm_delete(self, label):
             self.service.delete_producteur(producteur_id)
             self.refresh_table()
 

@@ -1,5 +1,4 @@
 from pathlib import Path
-import os
 
 from app.documents.placeholder_engine import PlaceholderEngine
 
@@ -21,7 +20,6 @@ class FactureGenerator:
         self._insert_logo(doc, getattr(facture, "producteur_logo_path", ""))
 
         doc.save(output_path)
-        os.startfile(output_path)
 
     def _insert_logo(self, doc, logo_path):
         """Remplace le marqueur {{producteur_logo}} par l'image du Producteur si

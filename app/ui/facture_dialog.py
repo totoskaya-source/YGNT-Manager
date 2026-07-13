@@ -23,10 +23,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.contracts.pdf_converter import PdfConversionTimeoutError
 from app.models.facture import Facture
 from app.services.artist_service import ArtistService
 from app.services.facture_service import FactureService
 from app.services.organization_service import OrganizationService
+from app.ui.background_task import run_task_with_progress
 from app.ui.dialogs import notify_success, open_folder
 
 DEFAULT_WIDTH = 1200
@@ -163,18 +165,52 @@ class FactureDialog(QDialog):
 
         self.formation_nom = QLineEdit()
         self.formation_nom.setReadOnly(True)
+        self.formation_adresse = QLineEdit()
+        self.formation_adresse.setReadOnly(True)
+        self.formation_postal_code = QLineEdit()
+        self.formation_postal_code.setReadOnly(True)
+        self.formation_city = QLineEdit()
+        self.formation_city.setReadOnly(True)
         self.formation_phone = QLineEdit()
         self.formation_phone.setReadOnly(True)
         self.formation_email = QLineEdit()
         self.formation_email.setReadOnly(True)
         self.formation_site_internet = QLineEdit()
         self.formation_site_internet.setReadOnly(True)
+        self.formation_siren = QLineEdit()
+        self.formation_siren.setReadOnly(True)
+        self.formation_siret = QLineEdit()
+        self.formation_siret.setReadOnly(True)
+        self.formation_ape = QLineEdit()
+        self.formation_ape.setReadOnly(True)
+        self.formation_licence = QLineEdit()
+        self.formation_licence.setReadOnly(True)
+        self.formation_iban = QLineEdit()
+        self.formation_iban.setReadOnly(True)
+        self.formation_bic = QLineEdit()
+        self.formation_bic.setReadOnly(True)
+        self.formation_social_number = QLineEdit()
+        self.formation_social_number.setReadOnly(True)
+        self.formation_notes = QTextEdit()
+        self.formation_notes.setFixedHeight(70)
+        self.formation_notes.setReadOnly(True)
 
         form.addRow("Formation", self.formation_combo)
         form.addRow("Nom", self.formation_nom)
+        form.addRow("Adresse", self.formation_adresse)
+        form.addRow("Code postal", self.formation_postal_code)
+        form.addRow("Ville", self.formation_city)
         form.addRow("Telephone", self.formation_phone)
         form.addRow("Email", self.formation_email)
         form.addRow("Site internet", self.formation_site_internet)
+        form.addRow("SIREN", self.formation_siren)
+        form.addRow("SIRET", self.formation_siret)
+        form.addRow("Code APE", self.formation_ape)
+        form.addRow("Licence", self.formation_licence)
+        form.addRow("IBAN", self.formation_iban)
+        form.addRow("BIC", self.formation_bic)
+        form.addRow("Numero de securite sociale", self.formation_social_number)
+        form.addRow("Notes", self.formation_notes)
 
         self.tabs.addTab(self._wrap_in_scroll(content), "Formation")
 
@@ -187,18 +223,58 @@ class FactureDialog(QDialog):
 
         self.organisateur_nom = QLineEdit()
         self.organisateur_nom.setReadOnly(True)
+        self.organisateur_forme = QLineEdit()
+        self.organisateur_forme.setReadOnly(True)
+        self.organisateur_adresse = QLineEdit()
+        self.organisateur_adresse.setReadOnly(True)
+        self.organisateur_postal_code = QLineEdit()
+        self.organisateur_postal_code.setReadOnly(True)
+        self.organisateur_city = QLineEdit()
+        self.organisateur_city.setReadOnly(True)
+        self.organisateur_siret = QLineEdit()
+        self.organisateur_siret.setReadOnly(True)
         self.organisateur_phone = QLineEdit()
         self.organisateur_phone.setReadOnly(True)
         self.organisateur_email = QLineEdit()
         self.organisateur_email.setReadOnly(True)
-        self.organisateur_adresse = QLineEdit()
-        self.organisateur_adresse.setReadOnly(True)
+        self.organisateur_site_internet = QLineEdit()
+        self.organisateur_site_internet.setReadOnly(True)
+        self.organisateur_ape = QLineEdit()
+        self.organisateur_ape.setReadOnly(True)
+        self.organisateur_licence = QLineEdit()
+        self.organisateur_licence.setReadOnly(True)
+        self.organisateur_tva = QLineEdit()
+        self.organisateur_tva.setReadOnly(True)
+        self.organisateur_representant = QLineEdit()
+        self.organisateur_representant.setReadOnly(True)
+        self.organisateur_fonction = QLineEdit()
+        self.organisateur_fonction.setReadOnly(True)
+        self.organisateur_iban = QLineEdit()
+        self.organisateur_iban.setReadOnly(True)
+        self.organisateur_bic = QLineEdit()
+        self.organisateur_bic.setReadOnly(True)
+        self.organisateur_notes = QTextEdit()
+        self.organisateur_notes.setFixedHeight(70)
+        self.organisateur_notes.setReadOnly(True)
 
         form.addRow("Organisateur", self.organization_combo)
         form.addRow("Nom", self.organisateur_nom)
+        form.addRow("Forme juridique", self.organisateur_forme)
+        form.addRow("Adresse", self.organisateur_adresse)
+        form.addRow("Code postal", self.organisateur_postal_code)
+        form.addRow("Ville", self.organisateur_city)
+        form.addRow("SIRET", self.organisateur_siret)
         form.addRow("Telephone", self.organisateur_phone)
         form.addRow("Email", self.organisateur_email)
-        form.addRow("Adresse", self.organisateur_adresse)
+        form.addRow("Site internet", self.organisateur_site_internet)
+        form.addRow("Code APE", self.organisateur_ape)
+        form.addRow("Licence spectacle", self.organisateur_licence)
+        form.addRow("TVA intracommunautaire", self.organisateur_tva)
+        form.addRow("Representee par", self.organisateur_representant)
+        form.addRow("Fonction", self.organisateur_fonction)
+        form.addRow("IBAN", self.organisateur_iban)
+        form.addRow("BIC", self.organisateur_bic)
+        form.addRow("Notes", self.organisateur_notes)
 
         self.tabs.addTab(self._wrap_in_scroll(content), "Organisateur")
 
@@ -333,9 +409,20 @@ class FactureDialog(QDialog):
             return
 
         self.formation_nom.setText(artist.stage_name or artist.legal_name or "")
+        self.formation_adresse.setText(artist.address or "")
+        self.formation_postal_code.setText(artist.postal_code or "")
+        self.formation_city.setText(artist.city or "")
         self.formation_phone.setText(artist.phone or "")
         self.formation_email.setText(artist.email or "")
         self.formation_site_internet.setText(artist.site_internet or "")
+        self.formation_siren.setText(artist.siren or "")
+        self.formation_siret.setText(artist.siret or "")
+        self.formation_ape.setText(artist.ape or "")
+        self.formation_licence.setText(artist.licence or "")
+        self.formation_iban.setText(artist.iban or "")
+        self.formation_bic.setText(artist.bic or "")
+        self.formation_social_number.setText(artist.social_number or "")
+        self.formation_notes.setPlainText(artist.notes or "")
 
     def _on_organization_selected(self, _index: int) -> None:
         organization_id = self.organization_combo.currentData()
@@ -347,9 +434,22 @@ class FactureDialog(QDialog):
             return
 
         self.organisateur_nom.setText(organization.name or "")
+        self.organisateur_forme.setText(organization.legal_form or "")
+        self.organisateur_adresse.setText(organization.address or "")
+        self.organisateur_postal_code.setText(organization.postal_code or "")
+        self.organisateur_city.setText(organization.city or "")
+        self.organisateur_siret.setText(organization.siret or "")
         self.organisateur_phone.setText(organization.phone or "")
         self.organisateur_email.setText(organization.email or "")
-        self.organisateur_adresse.setText(organization.address or "")
+        self.organisateur_site_internet.setText(organization.site_internet or "")
+        self.organisateur_ape.setText(organization.ape or "")
+        self.organisateur_licence.setText(organization.licence or "")
+        self.organisateur_tva.setText(organization.tva or "")
+        self.organisateur_representant.setText(organization.president or "")
+        self.organisateur_fonction.setText(organization.fonction or "")
+        self.organisateur_iban.setText(organization.iban or "")
+        self.organisateur_bic.setText(organization.bic or "")
+        self.organisateur_notes.setPlainText(organization.notes or "")
 
     # ===== Conditions financieres =====
 
@@ -451,14 +551,31 @@ class FactureDialog(QDialog):
             QMessageBox.information(self, "Export PDF", "Enregistrez d'abord la facture.")
             return
 
-        try:
-            self.service.generate_pdf(self._source_facture.id)
-        except Exception as exc:
-            QMessageBox.warning(self, "Erreur", str(exc))
-            return
+        facture_id = self._source_facture.id
 
-        self._refresh_source_facture()
-        notify_success(self, "Document PDF genere.")
+        def on_success(_result: object) -> None:
+            self._refresh_source_facture()
+            notify_success(self, "Document PDF genere.")
+
+        def on_error(exc: Exception) -> None:
+            if isinstance(exc, PdfConversionTimeoutError):
+                QMessageBox.warning(
+                    self,
+                    "Generation PDF",
+                    "La generation du PDF semble bloquee.\n\n"
+                    "Veuillez verifier qu'aucune fenetre Microsoft Word "
+                    "n'attend votre intervention.",
+                )
+                return
+            QMessageBox.warning(self, "Erreur", str(exc))
+
+        run_task_with_progress(
+            self,
+            "Generation du PDF...\nVeuillez patienter.",
+            lambda: self.service.generate_pdf(facture_id),
+            on_success,
+            on_error,
+        )
 
     def open_docx(self) -> None:
         if self._source_facture is None or self._source_facture.id is None:
@@ -570,42 +687,41 @@ class FactureDialog(QDialog):
             producteur_iban=base.producteur_iban,
             producteur_bic=base.producteur_bic,
             producteur_logo_path=base.producteur_logo_path,
-            # Formation : les 4 champs affiches dans ce dialogue sont saisis
-            # depuis la fiche Formation selectionnee ; les autres champs de
-            # l'instantane (non exposes ici) sont conserves tels quels.
+            # Formation : instantane complet saisi depuis la fiche Formation
+            # selectionnee (meme principe que le module Contrats).
             formation_nom=self.formation_nom.text().strip(),
+            formation_adresse=self.formation_adresse.text().strip(),
+            formation_postal_code=self.formation_postal_code.text().strip(),
+            formation_city=self.formation_city.text().strip(),
             formation_phone=self.formation_phone.text().strip(),
             formation_email=self.formation_email.text().strip(),
             formation_site_internet=self.formation_site_internet.text().strip(),
-            formation_adresse=base.formation_adresse,
-            formation_postal_code=base.formation_postal_code,
-            formation_city=base.formation_city,
-            formation_siren=base.formation_siren,
-            formation_siret=base.formation_siret,
-            formation_ape=base.formation_ape,
-            formation_licence=base.formation_licence,
-            formation_iban=base.formation_iban,
-            formation_bic=base.formation_bic,
-            formation_social_number=base.formation_social_number,
-            formation_notes=base.formation_notes,
-            # Organisateur : idem, seuls les 4 champs affiches sont saisis ici.
+            formation_siren=self.formation_siren.text().strip(),
+            formation_siret=self.formation_siret.text().strip(),
+            formation_ape=self.formation_ape.text().strip(),
+            formation_licence=self.formation_licence.text().strip(),
+            formation_iban=self.formation_iban.text().strip(),
+            formation_bic=self.formation_bic.text().strip(),
+            formation_social_number=self.formation_social_number.text().strip(),
+            formation_notes=self.formation_notes.toPlainText().strip(),
+            # Organisateur : idem, instantane complet.
             organisateur_structure=self.organisateur_nom.text().strip(),
+            organisateur_forme=self.organisateur_forme.text().strip(),
+            organisateur_adresse=self.organisateur_adresse.text().strip(),
+            organisateur_postal_code=self.organisateur_postal_code.text().strip(),
+            organisateur_city=self.organisateur_city.text().strip(),
+            organisateur_siret=self.organisateur_siret.text().strip(),
             organisateur_phone=self.organisateur_phone.text().strip(),
             organisateur_email=self.organisateur_email.text().strip(),
-            organisateur_adresse=self.organisateur_adresse.text().strip(),
-            organisateur_forme=base.organisateur_forme,
-            organisateur_postal_code=base.organisateur_postal_code,
-            organisateur_city=base.organisateur_city,
-            organisateur_siret=base.organisateur_siret,
-            organisateur_ape=base.organisateur_ape,
-            organisateur_licence=base.organisateur_licence,
-            organisateur_tva=base.organisateur_tva,
-            organisateur_representant=base.organisateur_representant,
-            organisateur_fonction=base.organisateur_fonction,
-            organisateur_iban=base.organisateur_iban,
-            organisateur_bic=base.organisateur_bic,
-            organisateur_site_internet=base.organisateur_site_internet,
-            organisateur_notes=base.organisateur_notes,
+            organisateur_site_internet=self.organisateur_site_internet.text().strip(),
+            organisateur_ape=self.organisateur_ape.text().strip(),
+            organisateur_licence=self.organisateur_licence.text().strip(),
+            organisateur_tva=self.organisateur_tva.text().strip(),
+            organisateur_representant=self.organisateur_representant.text().strip(),
+            organisateur_fonction=self.organisateur_fonction.text().strip(),
+            organisateur_iban=self.organisateur_iban.text().strip(),
+            organisateur_bic=self.organisateur_bic.text().strip(),
+            organisateur_notes=self.organisateur_notes.toPlainText().strip(),
             spectacle_nom=self.objet.text().strip(),
             spectacle_duree=base.spectacle_duree,
             prestation_date=self.date_prestation.date().toString("dd/MM/yyyy"),
@@ -642,14 +758,38 @@ class FactureDialog(QDialog):
         self.organization_combo.setCurrentIndex(organization_index if organization_index >= 0 else 0)
 
         self.formation_nom.setText(facture.formation_nom or "")
+        self.formation_adresse.setText(facture.formation_adresse or "")
+        self.formation_postal_code.setText(facture.formation_postal_code or "")
+        self.formation_city.setText(facture.formation_city or "")
         self.formation_phone.setText(facture.formation_phone or "")
         self.formation_email.setText(facture.formation_email or "")
         self.formation_site_internet.setText(facture.formation_site_internet or "")
+        self.formation_siren.setText(facture.formation_siren or "")
+        self.formation_siret.setText(facture.formation_siret or "")
+        self.formation_ape.setText(facture.formation_ape or "")
+        self.formation_licence.setText(facture.formation_licence or "")
+        self.formation_iban.setText(facture.formation_iban or "")
+        self.formation_bic.setText(facture.formation_bic or "")
+        self.formation_social_number.setText(facture.formation_social_number or "")
+        self.formation_notes.setPlainText(facture.formation_notes or "")
 
         self.organisateur_nom.setText(facture.organisateur_structure or "")
+        self.organisateur_forme.setText(facture.organisateur_forme or "")
+        self.organisateur_adresse.setText(facture.organisateur_adresse or "")
+        self.organisateur_postal_code.setText(facture.organisateur_postal_code or "")
+        self.organisateur_city.setText(facture.organisateur_city or "")
+        self.organisateur_siret.setText(facture.organisateur_siret or "")
         self.organisateur_phone.setText(facture.organisateur_phone or "")
         self.organisateur_email.setText(facture.organisateur_email or "")
-        self.organisateur_adresse.setText(facture.organisateur_adresse or "")
+        self.organisateur_site_internet.setText(facture.organisateur_site_internet or "")
+        self.organisateur_ape.setText(facture.organisateur_ape or "")
+        self.organisateur_licence.setText(facture.organisateur_licence or "")
+        self.organisateur_tva.setText(facture.organisateur_tva or "")
+        self.organisateur_representant.setText(facture.organisateur_representant or "")
+        self.organisateur_fonction.setText(facture.organisateur_fonction or "")
+        self.organisateur_iban.setText(facture.organisateur_iban or "")
+        self.organisateur_bic.setText(facture.organisateur_bic or "")
+        self.organisateur_notes.setPlainText(facture.organisateur_notes or "")
 
         self.objet.setText(facture.spectacle_nom or "")
         self.lieu.setText(facture.prestation_lieu or "")

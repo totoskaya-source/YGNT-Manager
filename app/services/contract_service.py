@@ -11,6 +11,7 @@ from app.database.database import PROJECT_ROOT
 from app.models.contract import Contract
 from app.models.devis import Devis
 from app.models.prestation import Prestation
+from app.paths import resource_path
 from app.repositories.contract_repository import ContractRepository
 from app.services.producteur_service import ProducteurService
 
@@ -29,7 +30,7 @@ class ContractService:
     ) -> None:
         self.repository = repository or ContractRepository()
         self.producteur_service = producteur_service or ProducteurService()
-        self.template_path = PROJECT_ROOT / "templates" / "contrat_cession.docx"
+        self.template_path = resource_path("templates", "contrat_cession.docx")
         self.exports_dir = PROJECT_ROOT / "exports"
 
     def list_contracts(self) -> list[Contract]:

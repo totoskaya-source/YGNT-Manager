@@ -1,9 +1,14 @@
 import sqlite3
-from pathlib import Path
 from typing import Optional
 
+from app.paths import BASE_DIR
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# PROJECT_ROOT designe le dossier de donnees UTILISATEUR (jamais les
+# ressources embarquees) : la racine du projet en developpement, ou le
+# dossier contenant l'executable une fois empaquete avec PyInstaller (voir
+# app/paths.py). Nom conserve pour ne pas casser les imports existants
+# (app.services.*).
+PROJECT_ROOT = BASE_DIR
 DATA_DIR = PROJECT_ROOT / "data"
 DATA_DIR.mkdir(exist_ok=True)
 

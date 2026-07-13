@@ -23,7 +23,7 @@ from app.models.contract import Contract
 from app.services.contract_service import ContractService
 from app.services.facture_service import FactureService
 from app.ui.contract_dialog import ContractDialog
-from app.ui.dialogs import confirm_delete
+from app.ui.dialogs import confirm_delete, notify_success
 from app.ui.facture_dialog import FactureDialog
 from app.ui.theme import mark_destructive, style_page_title, style_table
 
@@ -387,5 +387,5 @@ class ContractsPage(QWidget):
             return None
 
         if success_message:
-            self.statusTip()
+            notify_success(self, success_message)
         return result

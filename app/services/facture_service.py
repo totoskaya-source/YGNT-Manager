@@ -10,6 +10,7 @@ from app.factures.generator import FactureGenerator
 from app.models.contract import Contract
 from app.models.facture import Facture
 from app.models.prestation import Prestation
+from app.paths import resource_path
 from app.repositories.facture_repository import FactureRepository
 from app.services.producteur_service import ProducteurService
 
@@ -34,7 +35,7 @@ class FactureService:
     ) -> None:
         self.repository = repository or FactureRepository()
         self.producteur_service = producteur_service or ProducteurService()
-        self.template_path = PROJECT_ROOT / "templates" / "facture.docx"
+        self.template_path = resource_path("templates", "facture.docx")
         self.exports_dir = PROJECT_ROOT / "exports"
 
     def list_factures(self) -> list[Facture]:

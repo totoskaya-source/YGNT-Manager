@@ -5,3 +5,11 @@ data/*.db
 data/*.db-*
 exports/
 backup/
+
+# Artefacts de build PyInstaller (voir ygnt_manager.spec) - jamais versionnes
+build/
+dist/
+
+# Installateur genere (voir ygnt_manager_setup.iss) - binaire volumineux,
+# jamais versionne, regenerable via la procedure documentee
+installer/
