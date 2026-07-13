@@ -19,8 +19,10 @@ from PySide6.QtWidgets import (
 
 from app.models.facture import Facture
 from app.services.facture_service import FactureService
+from app.services.paiement_service import PaiementService
 from app.ui.dialogs import confirm_delete
 from app.ui.facture_dialog import FactureDialog
+from app.ui.paiement_dialog import PaiementDialog
 from app.ui.theme import mark_destructive, style_page_title, style_table
 
 
@@ -36,10 +38,15 @@ class FacturesPage(QWidget):
         "Statut",
     )
 
-    def __init__(self, service: FactureService | None = None) -> None:
+    def __init__(
+        self,
+        service: FactureService | None = None,
+        paiement_service: PaiementService | None = None,
+    ) -> None:
         super().__init__()
 
         self.service = service or FactureService()
+        self.paiement_service = paiement_service or PaiementService(facture_service=self.service)
         self._factures: list[Facture] = []
 
         layout = QVBoxLayout(self)
@@ -84,6 +91,7 @@ class FacturesPage(QWidget):
         self.btn_edit = QPushButton("Modifier")
         self.btn_delete = QPushButton("Supprimer")
         mark_destructive(self.btn_delete)
+        self.btn_create_paiement = QPushButton("💳 Creer un paiement")
         self.btn_refresh = QPushButton("Actualiser")
 
         self.search = QLineEdit()
@@ -94,11 +102,13 @@ class FacturesPage(QWidget):
         self.btn_add.clicked.connect(self.new_facture)
         self.btn_edit.clicked.connect(self.edit_selected_facture)
         self.btn_delete.clicked.connect(self.delete_selected_facture)
+        self.btn_create_paiement.clicked.connect(self.create_paiement_from_selected_facture)
         self.btn_refresh.clicked.connect(self.refresh_table)
 
         toolbar.addWidget(self.btn_add)
         toolbar.addWidget(self.btn_edit)
         toolbar.addWidget(self.btn_delete)
+        toolbar.addWidget(self.btn_create_paiement)
         toolbar.addWidget(self.btn_refresh)
         toolbar.addStretch()
         toolbar.addWidget(self.search, 1)
@@ -156,6 +166,41 @@ class FacturesPage(QWidget):
             self.service.delete_facture(facture_id)
             self.refresh_table()
 
+    def create_paiement_from_selected_facture(self) -> None:
+        facture = self._selected_facture()
+
+        if facture is None or facture.id is None:
+            QMessageBox.information(self, "Creer un paiement", "Selectionnez une facture.")
+            return
+
+        # La facture n'est jamais modifiee ici : le paiement est un nouveau
+        # document independant, pre-rempli puis toujours modifiable avant
+        # enregistrement (meme principe que Devis/Contrat/Facture depuis une
+        # autre entite). Le statut de la facture ne sera mis a jour qu'apres
+        # l'enregistrement reel du paiement, via PaiementService.
+        seed = self.paiement_service.build_from_facture(facture)
+
+        dialog = PaiementDialog(
+            self,
+            initial_paiement=seed,
+            service=self.paiement_service,
+            facture_service=self.service,
+        )
+
+        if dialog.exec():
+            try:
+                self.paiement_service.create_paiement(dialog.paiement)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Paiement invalide", str(exc))
+                return
+
+            QMessageBox.information(
+                self,
+                "Paiement cree",
+                f"Paiement {dialog.paiement.reference} cree pour la facture {facture.facture_number}.",
+            )
+            self.refresh_table()
+
     def refresh_table(self) -> None:
         self._factures = self.service.search_factures(self.search.text())
         self._fill_table(self._factures)
@@ -211,7 +256,12 @@ class FacturesPage(QWidget):
         except ValueError:
             return None
 
+    def _selected_facture(self) -> Facture | None:
+        facture_id = self._selected_facture_id()
+        return self.service.get_facture(facture_id) if facture_id is not None else None
+
     def _sync_buttons(self) -> None:
         has_selection = self._selected_facture_id() is not None
         self.btn_edit.setEnabled(has_selection)
         self.btn_delete.setEnabled(has_selection)
+        self.btn_create_paiement.setEnabled(has_selection)

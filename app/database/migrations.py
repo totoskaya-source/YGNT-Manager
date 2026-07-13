@@ -685,7 +685,7 @@ class MigrationManager:
             docx_path TEXT,
             pdf_path TEXT,
 
-            status TEXT DEFAULT 'draft',
+            status TEXT DEFAULT 'pending',
 
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT,
@@ -710,6 +710,37 @@ class MigrationManager:
             FOREIGN KEY(organization_id)
                 REFERENCES organizations(id)
                 ON DELETE SET NULL
+        )
+        """)
+
+        self.db.execute("""
+        CREATE TABLE IF NOT EXISTS paiements(
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            reference TEXT,
+
+            facture_id INTEGER NOT NULL,
+
+            date_paiement TEXT,
+
+            montant REAL DEFAULT 0,
+
+            mode_paiement TEXT,
+
+            reference_bancaire TEXT,
+
+            observations TEXT,
+
+            status TEXT DEFAULT 'pending',
+
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+
+            updated_at TEXT,
+
+            FOREIGN KEY(facture_id)
+                REFERENCES factures(id)
+                ON DELETE CASCADE
         )
         """)
 

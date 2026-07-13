@@ -15,9 +15,14 @@ from app.services.producteur_service import ProducteurService
 
 
 class FactureService:
+    # Le statut d'une facture reflete son etat de reglement, determine
+    # automatiquement par PaiementService a partir de compute_facture_status()
+    # apres chaque creation/modification/suppression d'un paiement. Seul
+    # 'cancelled' reste modifiable manuellement (annulation administrative,
+    # independante du suivi des paiements).
     STATUSES = {
-        "draft": "Brouillon",
-        "issued": "Emise",
+        "pending": "En attente",
+        "partial": "Partiel",
         "paid": "Payee",
         "cancelled": "Annulee",
     }
@@ -127,6 +132,13 @@ class FactureService:
 
     def delete_facture(self, facture_id: int) -> None:
         self.repository.delete(facture_id)
+
+    def update_status(self, facture_id: int, status: str) -> None:
+        """Met a jour UNIQUEMENT le statut d'une facture : aucun autre champ
+        (montant inclus) n'est touche. Utilise par PaiementService pour
+        refleter automatiquement l'etat de reglement apres chaque
+        creation/modification/suppression d'un paiement."""
+        self.repository.update_status(facture_id, status)
 
     def next_facture_number(self) -> str:
         year = datetime.now().year
@@ -272,7 +284,7 @@ class FactureService:
         facture.echeance = str(facture.echeance or "").strip()
         facture.observations = str(facture.observations or "").strip()
         facture.comments = str(facture.comments or "").strip()
-        facture.status = facture.status or "draft"
+        facture.status = facture.status or "pending"
 
         if not facture.organisateur_structure:
             raise ValueError("L'organisateur est obligatoire.")

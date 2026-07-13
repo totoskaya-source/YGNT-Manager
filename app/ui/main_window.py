@@ -12,6 +12,7 @@ from app.ui.contracts import ContractsPage
 from app.ui.devis import DevisPage
 from app.ui.factures import FacturesPage
 from app.ui.organisateurs import OrganisateursPage
+from app.ui.paiements import PaiementsPage
 from app.ui.parametres import ParametresPage
 from app.ui.prestations import PrestationsPage
 from app.ui.theme import SIDEBAR_WIDTH, style_page_title, style_sidebar
@@ -49,6 +50,7 @@ class MainWindow(QMainWindow):
             "📄 Devis",
             "📄 Contrats",
             "🧾 Factures",
+            "💳 Paiements",
             "⚙️ Paramètres",
         ])
 
@@ -84,6 +86,9 @@ class MainWindow(QMainWindow):
 
         elif "Factures" in page:
             self.page = FacturesPage()
+
+        elif "Paiements" in page:
+            self.page = PaiementsPage()
 
         elif "Organisateurs" in page:
             self.page = OrganisateursPage()

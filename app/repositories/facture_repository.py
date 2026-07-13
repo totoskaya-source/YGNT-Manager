@@ -164,6 +164,17 @@ class FactureRepository(BaseRepository):
             (pdf_path, facture_id),
         )
 
+    def update_status(self, facture_id: int, status: str) -> None:
+        self.execute(
+            """
+            UPDATE factures
+            SET status=?,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+            """,
+            (status, facture_id),
+        )
+
     def _params(self, facture: Facture) -> tuple[Any, ...]:
         return tuple(self._to_db_value(getattr(facture, column)) for column in self.COLUMNS)
 

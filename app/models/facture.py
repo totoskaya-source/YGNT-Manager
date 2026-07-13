@@ -90,7 +90,7 @@ class Facture:
     docx_path: str = ""
     pdf_path: str = ""
 
-    status: str = "draft"
+    status: str = "pending"
 
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -110,11 +110,18 @@ class Facture:
 
     @property
     def status_label(self) -> str:
+        # Le statut d'une facture suit desormais l'etat de reglement,
+        # determine automatiquement par PaiementService.compute_facture_status()
+        # (En attente / Partiel / Payee / Annulee). Les anciens codes
+        # (Brouillon / Emise) restent affiches correctement pour les factures
+        # deja existantes en base, jamais migrees retroactivement.
         labels = {
-            "draft": "Brouillon",
-            "issued": "Emise",
+            "pending": "En attente",
+            "partial": "Partiel",
             "paid": "Payee",
             "cancelled": "Annulee",
+            "draft": "Brouillon",
+            "issued": "Emise",
         }
         return labels.get(self.status, self.status)
 

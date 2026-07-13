@@ -28,16 +28,19 @@ from PySide6.QtWidgets import (
 from app.models.contract import Contract
 from app.models.devis import Devis
 from app.models.facture import Facture
+from app.models.paiement import Paiement
 from app.models.prestation import Prestation
 from app.services.artist_service import ArtistService
 from app.services.contract_service import ContractService
 from app.services.devis_service import DevisService
 from app.services.facture_service import FactureService
 from app.services.organization_service import OrganizationService
+from app.services.paiement_service import PaiementService
 from app.services.prestation_service import PrestationService
 from app.ui.contract_dialog import ContractDialog
 from app.ui.devis_dialog import DevisDialog
 from app.ui.facture_dialog import FactureDialog
+from app.ui.paiement_dialog import PaiementDialog
 from app.ui.theme import style_section_label, style_table
 
 DEFAULT_WIDTH = 1200
@@ -65,6 +68,7 @@ class PrestationDialog(QDialog):
         devis_service: DevisService | None = None,
         contract_service: ContractService | None = None,
         facture_service: FactureService | None = None,
+        paiement_service: PaiementService | None = None,
     ) -> None:
         super().__init__(parent)
 
@@ -74,10 +78,12 @@ class PrestationDialog(QDialog):
         self.devis_service = devis_service or DevisService()
         self.contract_service = contract_service or ContractService()
         self.facture_service = facture_service or FactureService()
+        self.paiement_service = paiement_service or PaiementService(facture_service=self.facture_service)
         self._source_prestation = prestation
         self._dossier_devis: list[Devis] = []
         self._dossier_contracts: list[Contract] = []
         self._dossier_factures: list[Facture] = []
+        self._dossier_paiements: list[Paiement] = []
         self.prestation = prestation or Prestation(reference=self.service.next_reference())
 
         self.setWindowTitle("Modifier une prestation" if prestation else "Nouvelle prestation")
@@ -248,8 +254,9 @@ class PrestationDialog(QDialog):
         """Vue consolidee de tout ce qui se rattache a cette prestation (Devis,
         Contrat, Facture, Paiement, Documents, Historique). Consultation et
         navigation uniquement : aucun document n'est cree depuis cet onglet,
-        les documents transactionnels sont retrouves via prestation_id, jamais
-        dupliques (cf. docs/PRESTATIONS_ARCHITECTURE.md)."""
+        les documents transactionnels sont retrouves via prestation_id (ou,
+        pour les Paiements, indirectement via leur Facture), jamais dupliques
+        (cf. docs/PRESTATIONS_ARCHITECTURE.md)."""
         content = QWidget()
         layout = QVBoxLayout(content)
 
@@ -293,7 +300,17 @@ class PrestationDialog(QDialog):
         layout.addLayout(facture_actions)
 
         layout.addWidget(self._section_label("Paiement"))
-        layout.addWidget(QLabel("Aucun paiement (module pas encore implemente)."))
+        self.paiement_table = self._build_dossier_table(["Reference", "Date", "Montant", "Statut"])
+        self.paiement_table.itemSelectionChanged.connect(self._sync_dossier_buttons)
+        self.paiement_table.itemDoubleClicked.connect(self._open_selected_paiement)
+        layout.addWidget(self.paiement_table)
+
+        paiement_actions = QHBoxLayout()
+        self.btn_open_paiement = QPushButton("Ouvrir")
+        self.btn_open_paiement.clicked.connect(self._open_selected_paiement)
+        paiement_actions.addWidget(self.btn_open_paiement)
+        paiement_actions.addStretch()
+        layout.addLayout(paiement_actions)
 
         layout.addWidget(self._section_label("Documents"))
         layout.addWidget(QLabel("Aucun document."))
@@ -422,11 +439,13 @@ class PrestationDialog(QDialog):
         self._dossier_devis = []
         self._dossier_contracts = []
         self._dossier_factures = []
+        self._dossier_paiements = []
 
         if self._source_prestation is not None and self._source_prestation.id is not None:
             self._dossier_devis = self.devis_service.list_for_prestation(self._source_prestation.id)
             self._dossier_contracts = self.contract_service.list_for_prestation(self._source_prestation.id)
             self._dossier_factures = self.facture_service.list_for_prestation(self._source_prestation.id)
+            self._dossier_paiements = self.paiement_service.list_for_prestation(self._source_prestation.id)
 
         self.devis_table.setRowCount(len(self._dossier_devis))
         for row, devis in enumerate(self._dossier_devis):
@@ -447,9 +466,17 @@ class PrestationDialog(QDialog):
             self.facture_table.setItem(row, 2, self._dossier_item(facture.prestation_date))
             self.facture_table.setItem(row, 3, self._dossier_item(f"{float(facture.montant or 0):.2f} EUR"))
 
+        self.paiement_table.setRowCount(len(self._dossier_paiements))
+        for row, paiement in enumerate(self._dossier_paiements):
+            self.paiement_table.setItem(row, 0, self._dossier_item(paiement.reference))
+            self.paiement_table.setItem(row, 1, self._dossier_item(paiement.date_paiement))
+            self.paiement_table.setItem(row, 2, self._dossier_item(f"{float(paiement.montant or 0):.2f} EUR"))
+            self.paiement_table.setItem(row, 3, self._dossier_item(paiement.status_label))
+
         self.devis_table.resizeColumnsToContents()
         self.contract_table.resizeColumnsToContents()
         self.facture_table.resizeColumnsToContents()
+        self.paiement_table.resizeColumnsToContents()
         self._sync_dossier_buttons()
 
     @staticmethod
@@ -462,6 +489,7 @@ class PrestationDialog(QDialog):
         self.btn_open_devis.setEnabled(self.devis_table.currentRow() >= 0)
         self.btn_open_contract.setEnabled(self.contract_table.currentRow() >= 0)
         self.btn_open_facture.setEnabled(self.facture_table.currentRow() >= 0)
+        self.btn_open_paiement.setEnabled(self.paiement_table.currentRow() >= 0)
 
     def _open_selected_devis(self, *_args: Any) -> None:
         row = self.devis_table.currentRow()
@@ -527,6 +555,29 @@ class PrestationDialog(QDialog):
                 self.facture_service.update_facture(dialog.facture)
             except ValueError as exc:
                 QMessageBox.warning(self, "Facture invalide", str(exc))
+                return
+
+            self._refresh_dossier()
+
+    def _open_selected_paiement(self, *_args: Any) -> None:
+        # Consultation uniquement : ouvre toujours un paiement deja existant,
+        # jamais de creation depuis le Dossier (meme principe que Devis/Contrat/Facture).
+        row = self.paiement_table.currentRow()
+        if row < 0 or row >= len(self._dossier_paiements):
+            return
+
+        dialog = PaiementDialog(
+            self,
+            paiement=self._dossier_paiements[row],
+            service=self.paiement_service,
+            facture_service=self.facture_service,
+        )
+
+        if dialog.exec():
+            try:
+                self.paiement_service.update_paiement(dialog.paiement)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Paiement invalide", str(exc))
                 return
 
             self._refresh_dossier()
