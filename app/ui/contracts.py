@@ -149,14 +149,12 @@ class ContractsPage(QWidget):
         return toolbar
 
     def new_contract(self) -> None:
+        # Le dialogue s'enregistre desormais lui-meme (Sprint 12.0) : il reste
+        # ouvert apres la creation pour generer immediatement DOCX/PDF, sans
+        # repasser par cette liste. On se contente de rafraichir au retour.
         dialog = ContractDialog(self, service=self.service)
-
-        if dialog.exec():
-            self._run_action(
-                lambda: self.service.create_contract(dialog.contract),
-                "Contrat cree.",
-            )
-            self.refresh_table()
+        dialog.exec()
+        self.refresh_table()
 
     def edit_selected_contract(self, *_args: Any) -> None:
         contract = self._selected_contract()
@@ -166,13 +164,8 @@ class ContractsPage(QWidget):
             return
 
         dialog = ContractDialog(self, contract=contract, service=self.service)
-
-        if dialog.exec():
-            self._run_action(
-                lambda: self.service.update_contract(dialog.contract),
-                "Contrat modifie.",
-            )
-            self.refresh_table()
+        dialog.exec()
+        self.refresh_table()
 
     def duplicate_selected_contract(self) -> None:
         contract_id = self._selected_contract_id()
@@ -286,20 +279,7 @@ class ContractsPage(QWidget):
             initial_facture=seed,
             service=self.facture_service,
         )
-
-        if dialog.exec():
-            try:
-                self.facture_service.create_facture(dialog.facture)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Facture invalide", str(exc))
-                return
-
-            QMessageBox.information(
-                self,
-                "Facture creee",
-                f"Facture {dialog.facture.facture_number} creee a partir du contrat "
-                f"{contract.contract_number}.",
-            )
+        dialog.exec()
 
     def show_selected_history(self) -> None:
         contract_id = self._selected_contract_id()

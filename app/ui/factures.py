@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from app.models.facture import Facture
 from app.services.facture_service import FactureService
 from app.services.paiement_service import PaiementService
-from app.ui.dialogs import confirm_delete
+from app.ui.dialogs import confirm_delete, notify_success
 from app.ui.facture_dialog import FactureDialog
 from app.ui.paiement_dialog import PaiementDialog
 from app.ui.theme import mark_destructive, style_page_title, style_table
@@ -116,16 +116,12 @@ class FacturesPage(QWidget):
         return toolbar
 
     def new_facture(self) -> None:
+        # Le dialogue s'enregistre desormais lui-meme (Sprint 12.0) : il reste
+        # ouvert apres la creation pour generer immediatement DOCX/PDF, sans
+        # repasser par cette liste. On se contente de rafraichir au retour.
         dialog = FactureDialog(self, service=self.service)
-
-        if dialog.exec():
-            try:
-                self.service.create_facture(dialog.facture)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Facture invalide", str(exc))
-                return
-
-            self.refresh_table()
+        dialog.exec()
+        self.refresh_table()
 
     def edit_selected_facture(self, *_args: Any) -> None:
         facture_id = self._selected_facture_id()
@@ -142,15 +138,8 @@ class FacturesPage(QWidget):
             return
 
         dialog = FactureDialog(self, facture=facture, service=self.service)
-
-        if dialog.exec():
-            try:
-                self.service.update_facture(dialog.facture)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Facture invalide", str(exc))
-                return
-
-            self.refresh_table()
+        dialog.exec()
+        self.refresh_table()
 
     def delete_selected_facture(self) -> None:
         facture_id = self._selected_facture_id()
@@ -194,11 +183,7 @@ class FacturesPage(QWidget):
                 QMessageBox.warning(self, "Paiement invalide", str(exc))
                 return
 
-            QMessageBox.information(
-                self,
-                "Paiement cree",
-                f"Paiement {dialog.paiement.reference} cree pour la facture {facture.facture_number}.",
-            )
+            notify_success(self, "Paiement enregistre.")
             self.refresh_table()
 
     def refresh_table(self) -> None:

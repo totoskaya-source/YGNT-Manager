@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QDate, QSettings
@@ -15,6 +16,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
+    QPushButton,
     QScrollArea,
     QTabWidget,
     QTextEdit,
@@ -26,6 +28,7 @@ from app.models.contract import Contract
 from app.services.artist_service import ArtistService
 from app.services.contract_service import ContractService
 from app.services.organization_service import OrganizationService
+from app.ui.dialogs import notify_success, open_folder
 
 DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 850
@@ -83,6 +86,11 @@ class ContractDialog(QDialog):
         self._build_financial_tab()
         self._build_preview_tab()
 
+        # Actions document (DOCX/PDF) : disponibles uniquement une fois le
+        # contrat enregistre (un identifiant est necessaire pour nommer/
+        # retrouver les fichiers), meme ergonomie que Devis/Factures.
+        layout.addLayout(self._build_document_actions())
+
         # Les boutons restent en dehors des onglets : toujours visibles, jamais coupes.
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -105,6 +113,8 @@ class ContractDialog(QDialog):
             self._on_organization_selected(self.organization_combo.currentIndex())
 
         self._refresh_preview()
+        self._sync_document_buttons()
+        self._update_close_button()
 
         # Connectes apres le remplissage initial : un changement manuel de
         # l'utilisateur declenche l'auto-remplissage, pas le chargement du formulaire.
@@ -304,6 +314,31 @@ class ContractDialog(QDialog):
 
         self.tabs.addTab(content, "Apercu")
 
+    def _build_document_actions(self) -> QHBoxLayout:
+        actions = QHBoxLayout()
+        actions.setSpacing(8)
+
+        self.btn_generate_docx = QPushButton("Generer DOCX")
+        self.btn_generate_pdf = QPushButton("Generer PDF")
+        self.btn_open_docx = QPushButton("Ouvrir DOCX")
+        self.btn_open_pdf = QPushButton("Ouvrir PDF")
+        self.btn_open_folder = QPushButton("📂 Ouvrir le dossier des documents")
+
+        self.btn_generate_docx.clicked.connect(self.generate_docx)
+        self.btn_generate_pdf.clicked.connect(self.generate_pdf)
+        self.btn_open_docx.clicked.connect(self.open_docx)
+        self.btn_open_pdf.clicked.connect(self.open_pdf)
+        self.btn_open_folder.clicked.connect(self.open_documents_folder)
+
+        actions.addWidget(self.btn_generate_docx)
+        actions.addWidget(self.btn_generate_pdf)
+        actions.addWidget(self.btn_open_docx)
+        actions.addWidget(self.btn_open_pdf)
+        actions.addWidget(self.btn_open_folder)
+        actions.addStretch()
+
+        return actions
+
     # ===== Listes deroulantes Artiste / Organisateur =====
 
     def _reload_artist_choices(self) -> None:
@@ -388,6 +423,114 @@ class ContractDialog(QDialog):
     def _save_geometry(self) -> None:
         self._settings.setValue("geometry", self.saveGeometry())
 
+    # ===== Generation / ouverture DOCX et PDF =====
+
+    def _sync_document_buttons(self) -> None:
+        has_saved_contract = bool(self._source_contract and self._source_contract.id is not None)
+        self.btn_generate_docx.setEnabled(has_saved_contract)
+        self.btn_generate_pdf.setEnabled(has_saved_contract)
+
+        has_docx = bool(
+            self._source_contract
+            and self._source_contract.docx_path
+            and Path(self._source_contract.docx_path).exists()
+        )
+        has_pdf = bool(
+            self._source_contract
+            and self._source_contract.pdf_path
+            and Path(self._source_contract.pdf_path).exists()
+        )
+        self.btn_open_docx.setEnabled(has_docx)
+        self.btn_open_pdf.setEnabled(has_pdf)
+
+    def _update_close_button(self) -> None:
+        # Tant que rien n'est enregistre, "Annuler" ferme sans rien creer.
+        # Une fois le contrat enregistre, le dialogue reste ouvert et ce
+        # bouton ne fait plus que le fermer (les donnees sont deja
+        # persistees) : le libeller "Fermer" evite toute confusion.
+        has_saved = bool(self._source_contract and self._source_contract.id is not None)
+        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(
+            "Fermer" if has_saved else "Annuler"
+        )
+
+    def open_documents_folder(self) -> None:
+        open_folder(self.service.exports_dir)
+
+    def _refresh_source_contract(self) -> None:
+        if self._source_contract is None or self._source_contract.id is None:
+            return
+
+        refreshed = self.service.get_contract(self._source_contract.id)
+        if refreshed is not None:
+            self._source_contract = refreshed
+            self.contract = refreshed
+
+        self._sync_document_buttons()
+
+    def generate_docx(self) -> None:
+        if self._source_contract is None or self._source_contract.id is None:
+            QMessageBox.information(self, "Generation", "Enregistrez d'abord le contrat.")
+            return
+
+        try:
+            preview = self.service.preview(self._build_contract())
+        except ValueError as exc:
+            QMessageBox.warning(self, "Contrat incomplet", str(exc))
+            return
+
+        response = QMessageBox.question(
+            self,
+            "Apercu avant generation",
+            f"{preview}\n\nGenerer le document DOCX ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if response != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            self.service.generate_docx(self._source_contract.id)
+        except Exception as exc:
+            QMessageBox.warning(self, "Erreur", str(exc))
+            return
+
+        self._refresh_source_contract()
+        notify_success(self, "Document DOCX genere.")
+
+    def generate_pdf(self) -> None:
+        if self._source_contract is None or self._source_contract.id is None:
+            QMessageBox.information(self, "Export PDF", "Enregistrez d'abord le contrat.")
+            return
+
+        try:
+            self.service.export_pdf(self._source_contract.id)
+        except Exception as exc:
+            QMessageBox.warning(self, "Erreur", str(exc))
+            return
+
+        self._refresh_source_contract()
+        notify_success(self, "Document PDF genere.")
+
+    def open_docx(self) -> None:
+        if self._source_contract is None or self._source_contract.id is None:
+            QMessageBox.information(self, "Document", "Enregistrez d'abord le contrat.")
+            return
+
+        try:
+            self.service.open_document(self._source_contract.id)
+        except FileNotFoundError as exc:
+            QMessageBox.warning(self, "Document", str(exc))
+
+    def open_pdf(self) -> None:
+        if self._source_contract is None or self._source_contract.id is None:
+            QMessageBox.information(self, "PDF", "Enregistrez d'abord le contrat.")
+            return
+
+        try:
+            self.service.open_pdf(self._source_contract.id)
+        except FileNotFoundError as exc:
+            QMessageBox.warning(self, "PDF", str(exc))
+
     # ===== Sauvegarde =====
 
     def save(self) -> None:
@@ -399,8 +542,33 @@ class ContractDialog(QDialog):
             QMessageBox.warning(self, "Contrat incomplet", str(exc))
             return
 
+        is_new = contract.id is None
+
+        try:
+            if is_new:
+                contract.id = self.service.create_contract(contract)
+            else:
+                self.service.update_contract(contract)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Contrat invalide", str(exc))
+            return
+
+        saved = self.service.get_contract(contract.id)
+        if saved is not None:
+            contract = saved
+
         self.contract = contract
-        self.accept()
+        self._source_contract = contract
+
+        # Le dialogue reste ouvert apres l'enregistrement : les documents
+        # DOCX/PDF deviennent immediatement generables, sans repasser par la
+        # liste (Sprint 12.0).
+        self.setWindowTitle("Modifier un contrat")
+        self._sync_document_buttons()
+        self._update_close_button()
+        self._refresh_preview()
+
+        notify_success(self, "Contrat cree." if is_new else "Contrat modifie.")
 
     def show_preview(self) -> None:
         self._refresh_preview()

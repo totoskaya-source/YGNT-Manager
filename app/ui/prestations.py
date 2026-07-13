@@ -227,19 +227,7 @@ class PrestationsPage(QWidget):
             artist_service=self.artist_service,
             organization_service=self.organization_service,
         )
-
-        if dialog.exec():
-            try:
-                self.contract_service.create_contract(dialog.contract)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Contrat invalide", str(exc))
-                return
-
-            QMessageBox.information(
-                self,
-                "Contrat cree",
-                f"Contrat {dialog.contract.contract_number} cree pour cette prestation.",
-            )
+        dialog.exec()
 
     def create_devis_from_selected_prestation(self) -> None:
         prestation_id = self._selected_prestation_id()
@@ -264,19 +252,7 @@ class PrestationsPage(QWidget):
             artist_service=self.artist_service,
             organization_service=self.organization_service,
         )
-
-        if dialog.exec():
-            try:
-                self.devis_service.create_devis(dialog.devis)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Devis invalide", str(exc))
-                return
-
-            QMessageBox.information(
-                self,
-                "Devis cree",
-                f"Devis {dialog.devis.devis_number} cree pour cette prestation.",
-            )
+        dialog.exec()
 
     def create_facture_from_selected_prestation(self) -> None:
         prestation_id = self._selected_prestation_id()
@@ -304,19 +280,7 @@ class PrestationsPage(QWidget):
             artist_service=self.artist_service,
             organization_service=self.organization_service,
         )
-
-        if dialog.exec():
-            try:
-                self.facture_service.create_facture(dialog.facture)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Facture invalide", str(exc))
-                return
-
-            QMessageBox.information(
-                self,
-                "Facture creee",
-                f"Facture {dialog.facture.facture_number} creee pour cette prestation.",
-            )
+        dialog.exec()
 
     def refresh_table(self) -> None:
         self._prestations = self.service.search_prestations(self.search.text())

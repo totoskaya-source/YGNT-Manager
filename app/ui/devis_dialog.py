@@ -26,6 +26,7 @@ from app.models.devis import Devis
 from app.services.artist_service import ArtistService
 from app.services.devis_service import DevisService
 from app.services.organization_service import OrganizationService
+from app.ui.dialogs import notify_success, open_folder
 
 DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 850
@@ -107,6 +108,7 @@ class DevisDialog(QDialog):
 
         self._refresh_preview()
         self._sync_document_buttons()
+        self._update_close_button()
 
         # Connectes apres le remplissage initial : un changement manuel de
         # l'utilisateur declenche l'auto-remplissage, pas le chargement du formulaire.
@@ -276,16 +278,19 @@ class DevisDialog(QDialog):
         self.btn_generate_pdf = QPushButton("Generer PDF")
         self.btn_open_docx = QPushButton("Ouvrir DOCX")
         self.btn_open_pdf = QPushButton("Ouvrir PDF")
+        self.btn_open_folder = QPushButton("📂 Ouvrir le dossier des documents")
 
         self.btn_generate_docx.clicked.connect(self.generate_docx)
         self.btn_generate_pdf.clicked.connect(self.generate_pdf)
         self.btn_open_docx.clicked.connect(self.open_docx)
         self.btn_open_pdf.clicked.connect(self.open_pdf)
+        self.btn_open_folder.clicked.connect(self.open_documents_folder)
 
         actions.addWidget(self.btn_generate_docx)
         actions.addWidget(self.btn_generate_pdf)
         actions.addWidget(self.btn_open_docx)
         actions.addWidget(self.btn_open_pdf)
+        actions.addWidget(self.btn_open_folder)
         actions.addStretch()
 
         return actions
@@ -379,6 +384,19 @@ class DevisDialog(QDialog):
 
         self._sync_document_buttons()
 
+    def _update_close_button(self) -> None:
+        # Tant que rien n'est enregistre, "Annuler" ferme sans rien creer.
+        # Une fois le devis enregistre, le dialogue reste ouvert et ce
+        # bouton ne fait plus que le fermer (les donnees sont deja
+        # persistees) : le libeller "Fermer" evite toute confusion.
+        has_saved = bool(self._source_devis and self._source_devis.id is not None)
+        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(
+            "Fermer" if has_saved else "Annuler"
+        )
+
+    def open_documents_folder(self) -> None:
+        open_folder(self.service.exports_dir)
+
     def generate_docx(self) -> None:
         if self._source_devis is None or self._source_devis.id is None:
             QMessageBox.information(self, "Generation", "Enregistrez d'abord le devis.")
@@ -401,13 +419,13 @@ class DevisDialog(QDialog):
             return
 
         try:
-            path = self.service.generate_docx(self._source_devis.id)
+            self.service.generate_docx(self._source_devis.id)
         except Exception as exc:
             QMessageBox.warning(self, "Erreur", str(exc))
             return
 
         self._refresh_source_devis()
-        QMessageBox.information(self, "DOCX", f"Document cree :\n{path}")
+        notify_success(self, "Document DOCX genere.")
 
     def generate_pdf(self) -> None:
         if self._source_devis is None or self._source_devis.id is None:
@@ -415,13 +433,13 @@ class DevisDialog(QDialog):
             return
 
         try:
-            path = self.service.generate_pdf(self._source_devis.id)
+            self.service.generate_pdf(self._source_devis.id)
         except Exception as exc:
             QMessageBox.warning(self, "Erreur", str(exc))
             return
 
         self._refresh_source_devis()
-        QMessageBox.information(self, "PDF", f"PDF cree :\n{path}")
+        notify_success(self, "Document PDF genere.")
 
     def open_docx(self) -> None:
         if self._source_devis is None or self._source_devis.id is None:
@@ -454,8 +472,33 @@ class DevisDialog(QDialog):
             QMessageBox.warning(self, "Devis incomplet", str(exc))
             return
 
+        is_new = devis.id is None
+
+        try:
+            if is_new:
+                devis.id = self.service.create_devis(devis)
+            else:
+                self.service.update_devis(devis)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Devis invalide", str(exc))
+            return
+
+        saved = self.service.get_devis(devis.id)
+        if saved is not None:
+            devis = saved
+
         self.devis = devis
-        self.accept()
+        self._source_devis = devis
+
+        # Le dialogue reste ouvert apres l'enregistrement : les documents
+        # DOCX/PDF deviennent immediatement generables, sans repasser par la
+        # liste (Sprint 12.0).
+        self.setWindowTitle("Modifier un devis")
+        self._sync_document_buttons()
+        self._update_close_button()
+        self._refresh_preview()
+
+        notify_success(self, "Devis cree." if is_new else "Devis modifie.")
 
     def show_preview(self) -> None:
         self._refresh_preview()

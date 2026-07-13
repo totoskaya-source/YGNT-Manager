@@ -27,6 +27,7 @@ from app.models.facture import Facture
 from app.services.artist_service import ArtistService
 from app.services.facture_service import FactureService
 from app.services.organization_service import OrganizationService
+from app.ui.dialogs import notify_success, open_folder
 
 DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 850
@@ -111,6 +112,7 @@ class FactureDialog(QDialog):
         self._recalculate_total()
         self._refresh_preview()
         self._sync_document_buttons()
+        self._update_close_button()
 
         # Connectes apres le remplissage initial : un changement manuel de
         # l'utilisateur declenche l'auto-remplissage, pas le chargement du formulaire.
@@ -290,16 +292,19 @@ class FactureDialog(QDialog):
         self.btn_generate_pdf = QPushButton("Generer PDF")
         self.btn_open_docx = QPushButton("Ouvrir DOCX")
         self.btn_open_pdf = QPushButton("Ouvrir PDF")
+        self.btn_open_folder = QPushButton("📂 Ouvrir le dossier des documents")
 
         self.btn_generate_docx.clicked.connect(self.generate_docx)
         self.btn_generate_pdf.clicked.connect(self.generate_pdf)
         self.btn_open_docx.clicked.connect(self.open_docx)
         self.btn_open_pdf.clicked.connect(self.open_pdf)
+        self.btn_open_folder.clicked.connect(self.open_documents_folder)
 
         actions.addWidget(self.btn_generate_docx)
         actions.addWidget(self.btn_generate_pdf)
         actions.addWidget(self.btn_open_docx)
         actions.addWidget(self.btn_open_pdf)
+        actions.addWidget(self.btn_open_folder)
         actions.addStretch()
 
         return actions
@@ -387,6 +392,19 @@ class FactureDialog(QDialog):
         self.btn_open_docx.setEnabled(has_docx)
         self.btn_open_pdf.setEnabled(has_pdf)
 
+    def _update_close_button(self) -> None:
+        # Tant que rien n'est enregistre, "Annuler" ferme sans rien creer.
+        # Une fois la facture enregistree, le dialogue reste ouvert et ce
+        # bouton ne fait plus que le fermer (les donnees sont deja
+        # persistees) : le libeller "Fermer" evite toute confusion.
+        has_saved = bool(self._source_facture and self._source_facture.id is not None)
+        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(
+            "Fermer" if has_saved else "Annuler"
+        )
+
+    def open_documents_folder(self) -> None:
+        open_folder(self.service.exports_dir)
+
     def _refresh_source_facture(self) -> None:
         if self._source_facture is None or self._source_facture.id is None:
             return
@@ -420,13 +438,13 @@ class FactureDialog(QDialog):
             return
 
         try:
-            path = self.service.generate_docx(self._source_facture.id)
+            self.service.generate_docx(self._source_facture.id)
         except Exception as exc:
             QMessageBox.warning(self, "Erreur", str(exc))
             return
 
         self._refresh_source_facture()
-        QMessageBox.information(self, "DOCX", f"Document cree :\n{path}")
+        notify_success(self, "Document DOCX genere.")
 
     def generate_pdf(self) -> None:
         if self._source_facture is None or self._source_facture.id is None:
@@ -434,13 +452,13 @@ class FactureDialog(QDialog):
             return
 
         try:
-            path = self.service.generate_pdf(self._source_facture.id)
+            self.service.generate_pdf(self._source_facture.id)
         except Exception as exc:
             QMessageBox.warning(self, "Erreur", str(exc))
             return
 
         self._refresh_source_facture()
-        QMessageBox.information(self, "PDF", f"PDF cree :\n{path}")
+        notify_success(self, "Document PDF genere.")
 
     def open_docx(self) -> None:
         if self._source_facture is None or self._source_facture.id is None:
@@ -473,8 +491,33 @@ class FactureDialog(QDialog):
             QMessageBox.warning(self, "Facture incomplete", str(exc))
             return
 
+        is_new = facture.id is None
+
+        try:
+            if is_new:
+                facture.id = self.service.create_facture(facture)
+            else:
+                self.service.update_facture(facture)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Facture invalide", str(exc))
+            return
+
+        saved = self.service.get_facture(facture.id)
+        if saved is not None:
+            facture = saved
+
         self.facture = facture
-        self.accept()
+        self._source_facture = facture
+
+        # Le dialogue reste ouvert apres l'enregistrement : les documents
+        # DOCX/PDF deviennent immediatement generables, sans repasser par la
+        # liste (Sprint 12.0).
+        self.setWindowTitle("Modifier une facture")
+        self._sync_document_buttons()
+        self._update_close_button()
+        self._refresh_preview()
+
+        notify_success(self, "Facture creee." if is_new else "Facture modifiee.")
 
     def show_preview(self) -> None:
         self._refresh_preview()

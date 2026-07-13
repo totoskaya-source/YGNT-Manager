@@ -496,6 +496,9 @@ class PrestationDialog(QDialog):
         if row < 0 or row >= len(self._dossier_devis):
             return
 
+        # Le dialogue s'enregistre desormais lui-meme (Sprint 12.0) : toute
+        # modification est deja persistee des le clic sur "Enregistrer",
+        # jamais a refaire ici.
         dialog = DevisDialog(
             self,
             devis=self._dossier_devis[row],
@@ -503,15 +506,8 @@ class PrestationDialog(QDialog):
             artist_service=self.artist_service,
             organization_service=self.organization_service,
         )
-
-        if dialog.exec():
-            try:
-                self.devis_service.update_devis(dialog.devis)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Devis invalide", str(exc))
-                return
-
-            self._refresh_dossier()
+        dialog.exec()
+        self._refresh_dossier()
 
     def _open_selected_contract(self, *_args: Any) -> None:
         row = self.contract_table.currentRow()
@@ -525,15 +521,8 @@ class PrestationDialog(QDialog):
             artist_service=self.artist_service,
             organization_service=self.organization_service,
         )
-
-        if dialog.exec():
-            try:
-                self.contract_service.update_contract(dialog.contract)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Contrat invalide", str(exc))
-                return
-
-            self._refresh_dossier()
+        dialog.exec()
+        self._refresh_dossier()
 
     def _open_selected_facture(self, *_args: Any) -> None:
         # Consultation uniquement : ouvre toujours une facture deja existante,
@@ -549,15 +538,8 @@ class PrestationDialog(QDialog):
             artist_service=self.artist_service,
             organization_service=self.organization_service,
         )
-
-        if dialog.exec():
-            try:
-                self.facture_service.update_facture(dialog.facture)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Facture invalide", str(exc))
-                return
-
-            self._refresh_dossier()
+        dialog.exec()
+        self._refresh_dossier()
 
     def _open_selected_paiement(self, *_args: Any) -> None:
         # Consultation uniquement : ouvre toujours un paiement deja existant,

@@ -122,16 +122,12 @@ class DevisPage(QWidget):
         return toolbar
 
     def new_devis(self) -> None:
+        # Le dialogue s'enregistre desormais lui-meme (Sprint 12.0) : il reste
+        # ouvert apres la creation pour generer immediatement DOCX/PDF, sans
+        # repasser par cette liste. On se contente de rafraichir au retour.
         dialog = DevisDialog(self, service=self.service)
-
-        if dialog.exec():
-            try:
-                self.service.create_devis(dialog.devis)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Devis invalide", str(exc))
-                return
-
-            self.refresh_table()
+        dialog.exec()
+        self.refresh_table()
 
     def edit_selected_devis(self, *_args: Any) -> None:
         devis_id = self._selected_devis_id()
@@ -148,15 +144,8 @@ class DevisPage(QWidget):
             return
 
         dialog = DevisDialog(self, devis=devis, service=self.service)
-
-        if dialog.exec():
-            try:
-                self.service.update_devis(dialog.devis)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Devis invalide", str(exc))
-                return
-
-            self.refresh_table()
+        dialog.exec()
+        self.refresh_table()
 
     def delete_selected_devis(self) -> None:
         devis_id = self._selected_devis_id()
@@ -205,19 +194,7 @@ class DevisPage(QWidget):
             artist_service=self.artist_service,
             organization_service=self.organization_service,
         )
-
-        if dialog.exec():
-            try:
-                self.contract_service.create_contract(dialog.contract)
-            except ValueError as exc:
-                QMessageBox.warning(self, "Contrat invalide", str(exc))
-                return
-
-            QMessageBox.information(
-                self,
-                "Contrat cree",
-                f"Contrat {dialog.contract.contract_number} cree a partir du devis {devis.devis_number}.",
-            )
+        dialog.exec()
 
     def refresh_table(self) -> None:
         self._devis = self.service.search_devis(self.search.text())
