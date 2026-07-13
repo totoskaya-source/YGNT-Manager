@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 
 from app.ui.artistes import ArtistesPage
 from app.ui.contracts import ContractsPage
+from app.ui.dashboard import DashboardPage
 from app.ui.devis import DevisPage
 from app.ui.factures import FacturesPage
 from app.ui.organisateurs import OrganisateursPage
@@ -72,7 +73,10 @@ class MainWindow(QMainWindow):
         self.main_layout.removeWidget(self.page)
         self.page.deleteLater()
 
-        if "Prestations" in page:
+        if "Tableau de bord" in page:
+            self.page = DashboardPage()
+
+        elif "Prestations" in page:
             self.page = PrestationsPage()
 
         elif "Formations" in page:

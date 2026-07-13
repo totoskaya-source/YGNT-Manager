@@ -63,6 +63,10 @@ DIALOG_TITLE = "dialogTitle"
 SECTION_LABEL = "sectionLabel"
 SIDEBAR_LIST = "sidebar"
 DESTRUCTIVE_PROPERTY = "destructive"
+DASHBOARD_GREETING = "dashboardGreeting"
+STAT_VALUE = "statValue"
+STAT_LABEL = "statLabel"
+MUTED_TEXT = "mutedText"
 
 
 def _stylesheet() -> str:
@@ -117,6 +121,28 @@ def _stylesheet() -> str:
         margin-top: 10px;
         padding-bottom: 3px;
         border-bottom: 1px solid {BORDER};
+    }}
+
+    QLabel#{DASHBOARD_GREETING} {{
+        font-size: {FONT_SIZE_TITLE + 2}pt;
+        font-weight: 600;
+        color: {TEXT_PRIMARY};
+    }}
+
+    QLabel#{STAT_VALUE} {{
+        font-size: 24pt;
+        font-weight: 700;
+        color: {PRIMARY};
+    }}
+
+    QLabel#{STAT_LABEL} {{
+        font-size: {FONT_SIZE_BASE}pt;
+        color: {TEXT_SECONDARY};
+    }}
+
+    QLabel#{MUTED_TEXT} {{
+        color: {TEXT_MUTED};
+        font-style: italic;
     }}
 
     /* ===== Sidebar ===== */
@@ -407,6 +433,26 @@ def style_dialog_title(label: QLabel) -> None:
 def style_section_label(label: QLabel) -> None:
     """Marque un QLabel comme en-tete de sous-section a l'interieur d'une page."""
     label.setObjectName(SECTION_LABEL)
+
+
+def style_dashboard_greeting(label: QLabel) -> None:
+    """Marque un QLabel comme message de bienvenue du Dashboard (grande police)."""
+    label.setObjectName(DASHBOARD_GREETING)
+
+
+def style_stat_value(label: QLabel) -> None:
+    """Marque un QLabel comme valeur chiffree mise en avant (carte indicateur)."""
+    label.setObjectName(STAT_VALUE)
+
+
+def style_stat_label(label: QLabel) -> None:
+    """Marque un QLabel comme legende d'une valeur chiffree (carte indicateur)."""
+    label.setObjectName(STAT_LABEL)
+
+
+def style_muted_text(label: QLabel) -> None:
+    """Marque un QLabel comme texte secondaire discret (ex. etat vide)."""
+    label.setObjectName(MUTED_TEXT)
 
 
 def mark_destructive(button: QPushButton) -> None:
