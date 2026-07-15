@@ -4,6 +4,11 @@ Toutes les évolutions notables du logiciel sont consignées ici, par version.
 
 ---
 
+## v1.0.2 — Adresse complète de l'organisateur (Contrat)
+
+- Contrat, bloc Organisateur : l'adresse affichait uniquement la rue (`{{organisateur_adresse}}`) ; le code postal et la ville (déjà saisis et disponibles) sont désormais affichés sur la ligne suivante, sous toutes les formes d'organisateur (particulier, entreprise, association, collectivité).
+- Correction apportée uniquement au gabarit DOCX du Contrat : aucune ligne vide si le code postal et la ville sont absents (aucune régression sur les contrats existants), mise en page et pagination inchangées.
+
 ## v1.0.1 — Build Center
 
 - Industrialisation du processus de release : dossier `TOOLS/` avec un Build Center complet (`1_Lancer_YGNT.bat`, `2_Clean.bat`, `3_Build_EXE.bat`, `4_Build_Installateur.bat`, `5_Release.bat`) permettant de produire une release complète en un double-clic, sans aucune valeur de version dupliquée (lue automatiquement depuis `app/version.py`) et fonctionnant quel que soit l'emplacement du projet.
