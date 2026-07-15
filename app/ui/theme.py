@@ -10,7 +10,7 @@ destructive) au theme, qui se charge du rendu.
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QTableWidget, QWidget
+from PySide6.QtWidgets import QApplication, QDateEdit, QLabel, QPushButton, QTableWidget, QWidget
 
 # ===== Palette =====
 
@@ -55,6 +55,14 @@ RADIUS_CARD = 8
 
 SIDEBAR_WIDTH = 230
 TABLE_ROW_HEIGHT = 34
+
+# Taille minimale du popup calendrier d'un QDateEdit. Avec la police et le
+# theme de l'application, la sizeHint calculee par QCalendarWidget est trop
+# petite : les libelles des jours ("mar.", "sam."...) et les numeros sont
+# alors tronques ("..."). Une taille minimale genereuse garantit que le mois
+# s'affiche toujours en entier, quelle que soit la resolution ecran.
+CALENDAR_POPUP_MIN_WIDTH = 360
+CALENDAR_POPUP_MIN_HEIGHT = 280
 
 # ===== Noms d'objets (cibles des selecteurs QSS) =====
 
@@ -473,3 +481,18 @@ def style_table(table: QTableWidget) -> None:
     colonne de numeros de ligne, colonnes redimensionnables par l'utilisateur."""
     table.verticalHeader().setVisible(False)
     table.verticalHeader().setDefaultSectionSize(TABLE_ROW_HEIGHT)
+
+
+def style_date_edit(date_edit: QDateEdit) -> None:
+    """Active le popup calendrier d'un QDateEdit et garantit qu'il s'affiche
+    toujours en entier (mois complet, libelles de jours non tronques).
+
+    Le popup est une fenetre Qt::Popup independante : il n'est jamais limite
+    par le layout, le QScrollArea ou la fenetre qui contiennent le champ, et
+    Qt le repositionne deja au-dessus du champ si la place manque en dessous.
+    Sans cette taille minimale explicite, la sizeHint de QCalendarWidget est
+    sous-estimee avec la police de l'application et le calendrier apparait
+    tronque (numeros et abreviations de jours remplaces par "...")."""
+    date_edit.setCalendarPopup(True)
+    calendar = date_edit.calendarWidget()
+    calendar.setMinimumSize(CALENDAR_POPUP_MIN_WIDTH, CALENDAR_POPUP_MIN_HEIGHT)

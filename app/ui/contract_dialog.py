@@ -31,6 +31,7 @@ from app.services.contract_service import ContractService
 from app.services.organization_service import OrganizationService
 from app.ui.background_task import run_task_with_progress
 from app.ui.dialogs import notify_success, open_folder
+from app.ui.theme import style_date_edit
 
 DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 850
@@ -232,7 +233,7 @@ class ContractDialog(QDialog):
         self.spectacle = QLineEdit()
 
         self.date = QDateEdit()
-        self.date.setCalendarPopup(True)
+        style_date_edit(self.date)
         self.date.setDate(QDate.currentDate())
 
         self.convocation = QLineEdit()

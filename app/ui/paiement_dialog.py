@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from app.models.paiement import Paiement
 from app.services.facture_service import FactureService
 from app.services.paiement_service import PaiementService
+from app.ui.theme import style_date_edit
 
 DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 850
@@ -106,7 +107,7 @@ class PaiementDialog(QDialog):
         self.reference.setReadOnly(True)
 
         self.date_paiement = QDateEdit()
-        self.date_paiement.setCalendarPopup(True)
+        style_date_edit(self.date_paiement)
         self.date_paiement.setDate(QDate.currentDate())
 
         self.status = QComboBox()

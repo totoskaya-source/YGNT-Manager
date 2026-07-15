@@ -41,7 +41,7 @@ from app.ui.contract_dialog import ContractDialog
 from app.ui.devis_dialog import DevisDialog
 from app.ui.facture_dialog import FactureDialog
 from app.ui.paiement_dialog import PaiementDialog
-from app.ui.theme import style_section_label, style_table
+from app.ui.theme import style_date_edit, style_section_label, style_table
 
 DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 850
@@ -158,11 +158,11 @@ class PrestationDialog(QDialog):
             self.statut.addItem(label, value)
 
         self.date_debut = QDateEdit()
-        self.date_debut.setCalendarPopup(True)
+        style_date_edit(self.date_debut)
         self.date_debut.setDate(QDate.currentDate())
 
         self.date_fin = QDateEdit()
-        self.date_fin.setCalendarPopup(True)
+        style_date_edit(self.date_fin)
         self.date_fin.setDate(QDate.currentDate())
 
         form.addRow("Reference", self.reference)

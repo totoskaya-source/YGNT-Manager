@@ -1,0 +1,32 @@
+# Ressource de version Windows (FileVersion / ProductVersion) embarquee dans
+# YGNT Manager.exe par PyInstaller (voir ygnt_manager.spec, parametre
+# `version=`). A garder synchronisee avec APP_VERSION (app/version.py),
+# MyAppVersion (ygnt_manager_setup.iss) et CHANGELOG.md a chaque version.
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(1, 0, 1, 0),
+    prodvers=(1, 0, 1, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+    ),
+  kids=[
+    StringFileInfo(
+      [
+      StringTable(
+        u'040c04b0',
+        [StringStruct(u'CompanyName', u'YGNT Production'),
+        StringStruct(u'FileDescription', u'YGNT Manager'),
+        StringStruct(u'FileVersion', u'1.0.1.0'),
+        StringStruct(u'InternalName', u'YGNT Manager'),
+        StringStruct(u'LegalCopyright', u'\xa9 2026 YGNT Production. Tous droits reserves.'),
+        StringStruct(u'OriginalFilename', u'YGNT Manager.exe'),
+        StringStruct(u'ProductName', u'YGNT Manager'),
+        StringStruct(u'ProductVersion', u'1.0.1.0')])
+      ]),
+    VarFileInfo([VarStruct(u'Translation', [1036, 1200])])
+  ]
+)

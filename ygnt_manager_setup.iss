@@ -1,13 +1,13 @@
 ; Script Inno Setup - YGNT Manager
-; Genere YGNT_Manager_Setup_1.0.0.exe a partir du build PyInstaller
+; Genere YGNT_Manager_Setup_1.0.1.exe a partir du build PyInstaller
 ; (dist\YGNT Manager\ - voir ygnt_manager.spec, Sprint 13.0).
 ;
 ; Procedure de generation :
 ;   1) pyinstaller ygnt_manager.spec --noconfirm   (produit dist\YGNT Manager\)
-;   2) ISCC ygnt_manager_setup.iss                 (produit installer\YGNT_Manager_Setup_1.0.0.exe)
+;   2) ISCC ygnt_manager_setup.iss                 (produit installer\YGNT_Manager_Setup_1.0.1.exe)
 
 #define MyAppName "YGNT Manager"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "YGNT"
 #define MyAppExeName "YGNT Manager.exe"
 #define MyAppSourceDir "dist\YGNT Manager"
@@ -20,6 +20,12 @@ AppId={{39D3663D-5C6C-49EE-90B8-9D2619B5B68C}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+
+; Ressource de version Windows de l'installateur lui-meme (Proprietes >
+; Details de YGNT_Manager_Setup_1.0.1.exe) - independante de AppVersion, qui
+; ne concerne que l'application installee (Programmes et fonctionnalites).
+VersionInfoVersion={#MyAppVersion}
+VersionInfoProductVersion={#MyAppVersion}
 
 ; Installation par utilisateur (pas d'elevation UAC requise) dans un dossier
 ; ecrit par l'utilisateur courant : YGNT Manager cree data/, exports/ et
@@ -35,7 +41,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
 OutputDir=installer
-OutputBaseFilename=YGNT_Manager_Setup_1.0.0
+OutputBaseFilename=YGNT_Manager_Setup_1.0.1
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

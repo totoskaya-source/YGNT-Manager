@@ -28,9 +28,51 @@ class ContractGenerator:
         doc = Document(self.template_path)
         values = contract.to_dict()
 
+        has_structure_indicator = self._has_structure_indicator(values)
+        values["organisateur_structure_label"] = (
+            "Structure" if has_structure_indicator else "Nom et prénom"
+        )
+        if not has_structure_indicator:
+            # Un particulier n'a ni SIRET, ni representant, ni fonction, ni
+            # TVA, ni licence : ces champs ne doivent jamais apparaitre pour
+            # lui, meme si une valeur residuelle traine dans les donnees.
+            for key in self.PARTICULIER_HIDDEN_KEYS:
+                values[key] = ""
+
         self.replace_in_document(doc, values)
 
         doc.save(output_path)
+
+    # Champs qui ne peuvent exister que pour une structure enregistree
+    # (raison sociale, association, collectivite...) : un particulier n'a
+    # ni forme juridique, ni SIRET, ni TVA intracommunautaire, ni licence
+    # d'entrepreneur de spectacles. La presence d'un seul de ces champs
+    # suffit a prouver qu'il ne s'agit pas d'une personne physique, meme si
+    # la "Forme juridique" elle-meme n'a pas ete saisie.
+    STRUCTURE_INDICATOR_KEYS = (
+        "organisateur_forme",
+        "organisateur_siret",
+        "organisateur_tva",
+        "organisateur_licence",
+    )
+
+    # Champs a toujours masquer pour un particulier (voir generate()).
+    # Inclut STRUCTURE_INDICATOR_KEYS (deja garantis vides par definition)
+    # ainsi que representant/fonction, qui n'en font pas partie.
+    PARTICULIER_HIDDEN_KEYS = STRUCTURE_INDICATOR_KEYS + (
+        "organisateur_representant",
+        "organisateur_fonction",
+    )
+
+    @staticmethod
+    def _has_structure_indicator(values):
+        """Un organisateur particulier n'a pas de forme juridique (SARL,
+        association, mairie...) : dans ce cas le champ nom affiche une
+        personne physique, pas une structure."""
+        return any(
+            str(values.get(key) or "").strip()
+            for key in ContractGenerator.STRUCTURE_INDICATOR_KEYS
+        )
 
     def replace_in_document(self, doc, values):
         PlaceholderEngine.replace_in_document(doc, values)

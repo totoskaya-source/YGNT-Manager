@@ -67,6 +67,9 @@ exe = EXE(
     icon=None,  # aucune icone .ico dans le projet actuellement - voir livrable
     disable_windowed_traceback=False,
     argv_emulation=False,
+    # Ressource de version Windows (Proprietes > Details de l'exe) - a garder
+    # synchronisee avec APP_VERSION (app/version.py), voir version_info.txt.
+    version="version_info.txt",
 )
 
 coll = COLLECT(

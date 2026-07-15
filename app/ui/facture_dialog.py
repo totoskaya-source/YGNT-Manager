@@ -30,6 +30,7 @@ from app.services.facture_service import FactureService
 from app.services.organization_service import OrganizationService
 from app.ui.background_task import run_task_with_progress
 from app.ui.dialogs import notify_success, open_folder
+from app.ui.theme import style_date_edit
 
 DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 850
@@ -143,7 +144,7 @@ class FactureDialog(QDialog):
         self.facture_number.setReadOnly(True)
 
         self.date_general = QDateEdit()
-        self.date_general.setCalendarPopup(True)
+        style_date_edit(self.date_general)
         self.date_general.setDate(QDate.currentDate())
 
         self.status = QComboBox()
@@ -285,7 +286,7 @@ class FactureDialog(QDialog):
         self.objet = QLineEdit()
 
         self.date_prestation = QDateEdit()
-        self.date_prestation.setCalendarPopup(True)
+        style_date_edit(self.date_prestation)
         self.date_prestation.setDate(QDate.currentDate())
 
         self.lieu = QLineEdit()
