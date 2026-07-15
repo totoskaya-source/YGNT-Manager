@@ -8,10 +8,12 @@ from PySide6.QtWidgets import (
 )
 
 from app.ui.artistes import ArtistesPage
+from app.ui.cddu import CdduPage
 from app.ui.contracts import ContractsPage
 from app.ui.dashboard import DashboardPage
 from app.ui.devis import DevisPage
 from app.ui.factures import FacturesPage
+from app.ui.formations import FormationsPage
 from app.ui.organisateurs import OrganisateursPage
 from app.ui.paiements import PaiementsPage
 from app.ui.parametres import ParametresPage
@@ -48,13 +50,15 @@ class MainWindow(QMainWindow):
             "🏠 Tableau de bord",
             "📊 Statistiques",
             "🎭 Prestations",
-            "👥 Formations",
+            "👤 Artistes",
+            "🎼 Formations",
             "🏢 Organisateurs",
             "📄 Devis",
             "📃 Contrats",
+            "📝 CDDU",
             "🧾 Factures",
             "💳 Paiements",
-            "⚙ Parametres",
+            "⚙ Paramètres",
         ])
 
         self.main_layout.addWidget(self.menu)
@@ -84,14 +88,20 @@ class MainWindow(QMainWindow):
         elif "Prestations" in page:
             self.page = PrestationsPage()
 
-        elif "Formations" in page:
+        elif "Artistes" in page:
             self.page = ArtistesPage()
+
+        elif "Formations" in page:
+            self.page = FormationsPage()
 
         elif "Devis" in page:
             self.page = DevisPage()
 
         elif "Contrats" in page:
             self.page = ContractsPage()
+
+        elif "CDDU" in page:
+            self.page = CdduPage()
 
         elif "Factures" in page:
             self.page = FacturesPage()
@@ -102,7 +112,7 @@ class MainWindow(QMainWindow):
         elif "Organisateurs" in page:
             self.page = OrganisateursPage()
 
-        elif "Parametres" in page:
+        elif "Paramètres" in page:
             self.page = ParametresPage()
 
         else:

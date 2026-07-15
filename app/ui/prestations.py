@@ -20,23 +20,27 @@ from PySide6.QtWidgets import (
 from app.models.prestation import Prestation
 from app.services.artist_service import ArtistService
 from app.services.contract_service import ContractService
+from app.services.contrat_cddu_service import ContratCdduService
 from app.services.devis_service import DevisService
 from app.services.facture_service import FactureService
+from app.services.formation_artiste_service import FormationArtisteService
 from app.services.organization_service import OrganizationService
+from app.services.prestation_participant_service import PrestationParticipantService
 from app.services.prestation_service import PrestationService
+from app.ui.cddu_dialog import CdduDialog
 from app.ui.contract_dialog import ContractDialog
 from app.ui.devis_dialog import DevisDialog
 from app.ui.dialogs import confirm_delete
 from app.ui.facture_dialog import FactureDialog
 from app.ui.intermipaie_dialog import IntermiPaieDialog
 from app.ui.prestation_dialog import PrestationDialog
-from app.ui.theme import mark_destructive, style_page_title, style_table
+from app.ui.theme import DateTableWidgetItem, mark_destructive, style_page_title, style_table
 
 
 class PrestationsPage(QWidget):
     HEADERS = (
         "ID",
-        "Reference",
+        "Référence",
         "Date",
         "Nom",
         "Type",
@@ -45,6 +49,9 @@ class PrestationsPage(QWidget):
         "Lieu",
         "Statut",
     )
+    # Index de la colonne Date dans HEADERS : trie chronologiquement via
+    # DateTableWidgetItem plutot que comme du texte (v1.0.3, BUG-001).
+    DATE_COLUMN = 2
 
     def __init__(
         self,
@@ -54,6 +61,9 @@ class PrestationsPage(QWidget):
         contract_service: ContractService | None = None,
         devis_service: DevisService | None = None,
         facture_service: FactureService | None = None,
+        cddu_service: ContratCdduService | None = None,
+        formation_composition_service: FormationArtisteService | None = None,
+        participant_service: PrestationParticipantService | None = None,
     ) -> None:
         super().__init__()
 
@@ -63,6 +73,9 @@ class PrestationsPage(QWidget):
         self.contract_service = contract_service or ContractService()
         self.devis_service = devis_service or DevisService()
         self.facture_service = facture_service or FactureService()
+        self.cddu_service = cddu_service or ContratCdduService()
+        self.formation_composition_service = formation_composition_service or FormationArtisteService()
+        self.participant_service = participant_service or PrestationParticipantService()
         self._prestations: list[Prestation] = []
 
         layout = QVBoxLayout(self)
@@ -107,9 +120,10 @@ class PrestationsPage(QWidget):
         self.btn_edit = QPushButton("Modifier")
         self.btn_delete = QPushButton("Supprimer")
         mark_destructive(self.btn_delete)
-        self.btn_create_contract = QPushButton("Creer un contrat")
-        self.btn_create_devis = QPushButton("Creer un devis")
-        self.btn_create_facture = QPushButton("Creer une facture")
+        self.btn_create_contract = QPushButton("Créer un contrat")
+        self.btn_create_devis = QPushButton("Créer un devis")
+        self.btn_create_facture = QPushButton("Créer une facture")
+        self.btn_create_cddu = QPushButton("Créer un CDDU")
         self.btn_intermipaie = QPushButton("Calculer avec IntermiPaie")
         self.btn_refresh = QPushButton("Actualiser")
 
@@ -124,6 +138,7 @@ class PrestationsPage(QWidget):
         self.btn_create_contract.clicked.connect(self.create_contract_from_selected_prestation)
         self.btn_create_devis.clicked.connect(self.create_devis_from_selected_prestation)
         self.btn_create_facture.clicked.connect(self.create_facture_from_selected_prestation)
+        self.btn_create_cddu.clicked.connect(self.create_cddu_from_selected_prestation)
         self.btn_intermipaie.clicked.connect(self.open_intermipaie_for_selected_prestation)
         self.btn_refresh.clicked.connect(self.refresh_table)
 
@@ -133,6 +148,7 @@ class PrestationsPage(QWidget):
         toolbar.addWidget(self.btn_create_contract)
         toolbar.addWidget(self.btn_create_devis)
         toolbar.addWidget(self.btn_create_facture)
+        toolbar.addWidget(self.btn_create_cddu)
         toolbar.addWidget(self.btn_intermipaie)
         toolbar.addWidget(self.btn_refresh)
         toolbar.addStretch()
@@ -153,10 +169,16 @@ class PrestationsPage(QWidget):
 
         if dialog.exec():
             try:
-                self.service.create_prestation(dialog.prestation)
+                new_id = self.service.create_prestation(dialog.prestation)
             except ValueError as exc:
                 QMessageBox.warning(self, "Prestation invalide", str(exc))
                 return
+
+            # Formation choisie sur une prestation toute neuve : premiere
+            # sauvegarde, copie systematique de sa composition (rien a
+            # ecraser puisqu'aucune equipe n'existait avant).
+            if dialog.prestation.formation_id is not None:
+                self._copy_formation_members(new_id, dialog.prestation.formation_id)
 
             self.refresh_table()
 
@@ -164,7 +186,7 @@ class PrestationsPage(QWidget):
         prestation_id = self._selected_prestation_id()
 
         if prestation_id is None:
-            QMessageBox.information(self, "Modification", "Selectionnez une prestation.")
+            QMessageBox.information(self, "Modification", "Sélectionnez une prestation.")
             return
 
         prestation = self.service.get_prestation(prestation_id)
@@ -173,6 +195,8 @@ class PrestationsPage(QWidget):
             QMessageBox.warning(self, "Modification", "Cette prestation n'existe plus.")
             self.refresh_table()
             return
+
+        previous_formation_id = prestation.formation_id
 
         dialog = PrestationDialog(
             self,
@@ -192,13 +216,35 @@ class PrestationsPage(QWidget):
                 QMessageBox.warning(self, "Prestation invalide", str(exc))
                 return
 
+            # La copie ne se declenche que sur un veritable CHANGEMENT de
+            # Formation, jamais a chaque sauvegarde : sinon un membre retire
+            # manuellement de l'equipe serait systematiquement reajoute au
+            # sauvegarde suivant (docs/PRESTATIONS_ARCHITECTURE.md, Sprint 18.0).
+            if (
+                dialog.prestation.formation_id is not None
+                and dialog.prestation.formation_id != previous_formation_id
+            ):
+                self._copy_formation_members(dialog.prestation.id, dialog.prestation.formation_id)
+
             self.refresh_table()
+
+    def _copy_formation_members(self, prestation_id: int, formation_id: int) -> None:
+        for member in self.formation_composition_service.list_composition(formation_id):
+            try:
+                self.participant_service.add_participant(
+                    prestation_id,
+                    member.artiste_id,
+                    role=member.role,
+                    ordre=member.ordre,
+                )
+            except ValueError:
+                pass  # deja participant : rien a faire (ne remplace jamais un retrait manuel)
 
     def delete_selected_prestation(self) -> None:
         prestation_id = self._selected_prestation_id()
 
         if prestation_id is None:
-            QMessageBox.information(self, "Suppression", "Selectionnez une prestation.")
+            QMessageBox.information(self, "Suppression", "Sélectionnez une prestation.")
             return
 
         prestation = self.service.get_prestation(prestation_id)
@@ -212,13 +258,13 @@ class PrestationsPage(QWidget):
         prestation_id = self._selected_prestation_id()
 
         if prestation_id is None:
-            QMessageBox.information(self, "Creer un contrat", "Selectionnez une prestation.")
+            QMessageBox.information(self, "Créer un contrat", "Sélectionnez une prestation.")
             return
 
         prestation = self.service.get_prestation(prestation_id)
 
         if prestation is None:
-            QMessageBox.warning(self, "Creer un contrat", "Cette prestation n'existe plus.")
+            QMessageBox.warning(self, "Créer un contrat", "Cette prestation n'existe plus.")
             self.refresh_table()
             return
 
@@ -237,13 +283,13 @@ class PrestationsPage(QWidget):
         prestation_id = self._selected_prestation_id()
 
         if prestation_id is None:
-            QMessageBox.information(self, "Creer un devis", "Selectionnez une prestation.")
+            QMessageBox.information(self, "Créer un devis", "Sélectionnez une prestation.")
             return
 
         prestation = self.service.get_prestation(prestation_id)
 
         if prestation is None:
-            QMessageBox.warning(self, "Creer un devis", "Cette prestation n'existe plus.")
+            QMessageBox.warning(self, "Créer un devis", "Cette prestation n'existe plus.")
             self.refresh_table()
             return
 
@@ -253,7 +299,6 @@ class PrestationsPage(QWidget):
             self,
             initial_devis=seed,
             service=self.devis_service,
-            artist_service=self.artist_service,
             organization_service=self.organization_service,
         )
         dialog.exec()
@@ -262,13 +307,13 @@ class PrestationsPage(QWidget):
         prestation_id = self._selected_prestation_id()
 
         if prestation_id is None:
-            QMessageBox.information(self, "Creer une facture", "Selectionnez une prestation.")
+            QMessageBox.information(self, "Créer une facture", "Sélectionnez une prestation.")
             return
 
         prestation = self.service.get_prestation(prestation_id)
 
         if prestation is None:
-            QMessageBox.warning(self, "Creer une facture", "Cette prestation n'existe plus.")
+            QMessageBox.warning(self, "Créer une facture", "Cette prestation n'existe plus.")
             self.refresh_table()
             return
 
@@ -281,8 +326,36 @@ class PrestationsPage(QWidget):
             self,
             initial_facture=seed,
             service=self.facture_service,
+            organization_service=self.organization_service,
+        )
+        dialog.exec()
+
+    def create_cddu_from_selected_prestation(self) -> None:
+        prestation_id = self._selected_prestation_id()
+
+        if prestation_id is None:
+            QMessageBox.information(self, "Créer un CDDU", "Sélectionnez une prestation.")
+            return
+
+        prestation = self.service.get_prestation(prestation_id)
+
+        if prestation is None:
+            QMessageBox.warning(self, "Créer un CDDU", "Cette prestation n'existe plus.")
+            self.refresh_table()
+            return
+
+        # Meme ergonomie que Devis/Contrat/Facture : la prestation n'est
+        # jamais modifiee, le CDDU reste un nouveau document independant,
+        # pre-selectionne sur cette prestation puis toujours modifiable
+        # avant enregistrement (artiste, defraiements...).
+        dialog = CdduDialog(
+            self,
+            service=self.cddu_service,
             artist_service=self.artist_service,
             organization_service=self.organization_service,
+            participant_service=self.participant_service,
+            formation_composition_service=self.formation_composition_service,
+            initial_prestation_id=prestation_id,
         )
         dialog.exec()
 
@@ -290,7 +363,7 @@ class PrestationsPage(QWidget):
         prestation_id = self._selected_prestation_id()
 
         if prestation_id is None:
-            QMessageBox.information(self, "IntermiPaie", "Selectionnez une prestation.")
+            QMessageBox.information(self, "IntermiPaie", "Sélectionnez une prestation.")
             return
 
         prestation = self.service.get_prestation(prestation_id)
@@ -343,7 +416,11 @@ class PrestationsPage(QWidget):
             )
 
             for column, value in enumerate(values):
-                self.table.setItem(row, column, self._make_item(value))
+                if column == self.DATE_COLUMN:
+                    item = DateTableWidgetItem(value)
+                else:
+                    item = self._make_item(value)
+                self.table.setItem(row, column, item)
 
         self.table.setSortingEnabled(True)
         self.table.resizeColumnsToContents()
@@ -382,4 +459,5 @@ class PrestationsPage(QWidget):
         self.btn_create_contract.setEnabled(has_selection)
         self.btn_create_devis.setEnabled(has_selection)
         self.btn_create_facture.setEnabled(has_selection)
+        self.btn_create_cddu.setEnabled(has_selection)
         self.btn_intermipaie.setEnabled(has_selection)

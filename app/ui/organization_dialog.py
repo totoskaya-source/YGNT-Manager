@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -16,6 +17,10 @@ from PySide6.QtWidgets import (
 )
 
 from app.models.organization import Organization
+from app.ui.theme import required_label
+
+DEFAULT_WIDTH = 560
+DEFAULT_HEIGHT = 720
 
 
 class OrganizationDialog(QDialog):
@@ -26,7 +31,13 @@ class OrganizationDialog(QDialog):
         self.organization: Organization | None = None
 
         self.setWindowTitle("Modifier un organisateur" if organization else "Nouvel organisateur")
-        self.resize(560, 680)
+
+        self._settings = QSettings("YGNTManager", "OrganizationDialog")
+        saved_geometry = self._settings.value("geometry")
+        if saved_geometry is not None:
+            self.restoreGeometry(saved_geometry)
+        else:
+            self.resize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
 
         outer_layout = QVBoxLayout(self)
 
@@ -52,9 +63,9 @@ class OrganizationDialog(QDialog):
         self.notes = QTextEdit()
         self.notes.setFixedHeight(90)
 
-        general_group = QGroupBox("Informations generales")
+        general_group = QGroupBox("Informations générales")
         general_form = QFormLayout(general_group)
-        general_form.addRow("Nom", self.name)
+        general_form.addRow(required_label("Nom"), self.name)
         general_form.addRow("Forme juridique", self.legal_form)
         general_form.addRow("SIRET", self.siret)
         general_form.addRow("Code APE", self.ape)
@@ -62,19 +73,19 @@ class OrganizationDialog(QDialog):
         general_form.addRow("TVA intracommunautaire", self.tva)
         layout.addWidget(general_group)
 
-        contact_group = QGroupBox("Coordonnees")
+        contact_group = QGroupBox("Coordonnées")
         contact_form = QFormLayout(contact_group)
         contact_form.addRow("Adresse", self.address)
         contact_form.addRow("Code postal", self.postal_code)
         contact_form.addRow("Ville", self.city)
         contact_form.addRow("Email", self.email)
-        contact_form.addRow("Telephone", self.phone)
+        contact_form.addRow("Téléphone", self.phone)
         contact_form.addRow("Site internet", self.site_internet)
         layout.addWidget(contact_group)
 
-        representant_group = QGroupBox("Representant et coordonnees bancaires")
+        representant_group = QGroupBox("Représentant et coordonnées bancaires")
         representant_form = QFormLayout(representant_group)
-        representant_form.addRow("Represente par", self.president)
+        representant_form.addRow("Représenté par", self.president)
         representant_form.addRow("Fonction", self.fonction)
         representant_form.addRow("IBAN", self.iban)
         representant_form.addRow("BIC", self.bic)
@@ -103,6 +114,11 @@ class OrganizationDialog(QDialog):
 
         if organization is not None:
             self._fill_form(organization)
+
+        self.finished.connect(self._save_geometry)
+
+    def _save_geometry(self) -> None:
+        self._settings.setValue("geometry", self.saveGeometry())
 
     def save(self) -> None:
         if not self.name.text().strip():

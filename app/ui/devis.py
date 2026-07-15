@@ -25,13 +25,13 @@ from app.services.organization_service import OrganizationService
 from app.ui.contract_dialog import ContractDialog
 from app.ui.devis_dialog import DevisDialog
 from app.ui.dialogs import confirm_delete
-from app.ui.theme import mark_destructive, style_page_title, style_table
+from app.ui.theme import DateTableWidgetItem, mark_destructive, style_page_title, style_table
 
 
 class DevisPage(QWidget):
     HEADERS = (
         "ID",
-        "Reference",
+        "Référence",
         "Date",
         "Formation",
         "Organisateur",
@@ -39,6 +39,9 @@ class DevisPage(QWidget):
         "Montant",
         "Statut",
     )
+    # Index de la colonne Date : trie chronologiquement via
+    # DateTableWidgetItem plutot que comme du texte (v1.0.3, BUG-001).
+    DATE_COLUMN = 2
 
     def __init__(
         self,
@@ -97,7 +100,7 @@ class DevisPage(QWidget):
         self.btn_edit = QPushButton("Modifier")
         self.btn_delete = QPushButton("Supprimer")
         mark_destructive(self.btn_delete)
-        self.btn_create_contract = QPushButton("Creer un contrat")
+        self.btn_create_contract = QPushButton("Créer un contrat")
         self.btn_refresh = QPushButton("Actualiser")
 
         self.search = QLineEdit()
@@ -133,7 +136,7 @@ class DevisPage(QWidget):
         devis_id = self._selected_devis_id()
 
         if devis_id is None:
-            QMessageBox.information(self, "Modification", "Selectionnez un devis.")
+            QMessageBox.information(self, "Modification", "Sélectionnez un devis.")
             return
 
         devis = self.service.get_devis(devis_id)
@@ -151,7 +154,7 @@ class DevisPage(QWidget):
         devis_id = self._selected_devis_id()
 
         if devis_id is None:
-            QMessageBox.information(self, "Suppression", "Selectionnez un devis.")
+            QMessageBox.information(self, "Suppression", "Sélectionnez un devis.")
             return
 
         devis = self.service.get_devis(devis_id)
@@ -165,21 +168,21 @@ class DevisPage(QWidget):
         devis_id = self._selected_devis_id()
 
         if devis_id is None:
-            QMessageBox.information(self, "Creer un contrat", "Selectionnez un devis.")
+            QMessageBox.information(self, "Créer un contrat", "Sélectionnez un devis.")
             return
 
         devis = self.service.get_devis(devis_id)
 
         if devis is None:
-            QMessageBox.warning(self, "Creer un contrat", "Ce devis n'existe plus.")
+            QMessageBox.warning(self, "Créer un contrat", "Ce devis n'existe plus.")
             self.refresh_table()
             return
 
         if devis.status != "accepted":
             QMessageBox.information(
                 self,
-                "Creer un contrat",
-                "Seul un devis au statut 'Accepte' peut etre transforme en contrat.",
+                "Créer un contrat",
+                "Seul un devis au statut 'Accepté' peut être transformé en contrat.",
             )
             return
 
@@ -218,7 +221,10 @@ class DevisPage(QWidget):
             )
 
             for column, value in enumerate(values):
-                item = self._make_item(value)
+                if column == self.DATE_COLUMN:
+                    item = DateTableWidgetItem(value)
+                else:
+                    item = self._make_item(value)
                 if column == 6:
                     # L'ordre importe : EditRole doit etre fixe avant le texte
                     # affiche, sinon Qt reaffiche la valeur brute (voir tests).

@@ -46,6 +46,7 @@ class ProducteurRepository(BaseRepository):
                 bic,
                 representant,
                 fonction,
+                convention_collective,
                 logo_path,
                 site_internet,
                 email,
@@ -54,7 +55,7 @@ class ProducteurRepository(BaseRepository):
                 actif
             )
             VALUES(
-                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
             )
         """, (
             producteur.nom,
@@ -70,6 +71,7 @@ class ProducteurRepository(BaseRepository):
             producteur.bic,
             producteur.representant,
             producteur.fonction,
+            producteur.convention_collective,
             producteur.logo_path,
             producteur.site_internet,
             producteur.email,
@@ -98,6 +100,7 @@ class ProducteurRepository(BaseRepository):
                 bic=?,
                 representant=?,
                 fonction=?,
+                convention_collective=?,
                 logo_path=?,
                 site_internet=?,
                 email=?,
@@ -121,6 +124,7 @@ class ProducteurRepository(BaseRepository):
             producteur.bic,
             producteur.representant,
             producteur.fonction,
+            producteur.convention_collective,
             producteur.logo_path,
             producteur.site_internet,
             producteur.email,

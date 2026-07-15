@@ -1,0 +1,20 @@
+body{
+    margin:0;
+    background:#1f2125;
+    color:white;
+    font-family:Segoe UI,Arial,sans-serif;
+}
+
+.container{
+    width:900px;
+    margin:80px auto;
+}
+
+h1{
+    font-size:42px;
+    margin-bottom:10px;
+}
+
+p{
+    font-size:18px;
+}

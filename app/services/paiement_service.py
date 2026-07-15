@@ -12,8 +12,8 @@ class PaiementService:
     STATUSES = {
         "pending": "En attente",
         "partial": "Partiel",
-        "paid": "Paye",
-        "cancelled": "Annule",
+        "paid": "Payé",
+        "cancelled": "Annulé",
     }
 
     def __init__(
@@ -70,16 +70,16 @@ class PaiementService:
         """Prepare un paiement pre-rempli (facture, montant restant, mode de
         paiement ; l'echeance de la facture est reportee en observations
         faute de champ dedie sur Paiement) a partir d'une Facture. Le
-        paiement n'est pas enregistre : nouveau document independant,
+        paiement n'est pas enregistré : nouveau document independant,
         toujours modifiable avant validation. La Facture n'est JAMAIS
-        modifiee (meme philosophie que FactureService.build_from_contract)."""
+        modifiée (meme philosophie que FactureService.build_from_contract)."""
         montant_restant = self.solde_restant(facture.id) if facture.id is not None else float(facture.montant or 0)
 
         return Paiement(
             facture_id=facture.id,
             montant=max(montant_restant, 0.0),
             mode_paiement=facture.mode_paiement,
-            observations=f"Echeance facture : {facture.echeance}" if facture.echeance else "",
+            observations=f"Échéance facture : {facture.echeance}" if facture.echeance else "",
         )
 
     def create_paiement(self, paiement: Paiement) -> int:
@@ -114,7 +114,7 @@ class PaiementService:
 
     def total_paid(self, facture_id: int) -> float:
         """Somme des paiements valides (statut different de 'cancelled')
-        deja enregistres pour cette facture."""
+        déjà enregistrés pour cette facture."""
         paiements = self.list_for_facture(facture_id)
         return round(
             sum(float(p.montant or 0) for p in paiements if p.status != "cancelled"),
@@ -122,9 +122,9 @@ class PaiementService:
         )
 
     def _credite(self, facture_id: int) -> float:
-        """Total deja couvert sur cette facture : l'acompte indique sur la
-        facture (jamais un paiement enregistre automatiquement) plus les
-        paiements effectivement enregistres. Base commune a solde_restant()
+        """Total déjà couvert sur cette facture : l'acompte indique sur la
+        facture (jamais un paiement enregistré automatiquement) plus les
+        paiements effectivement enregistrés. Base commune a solde_restant()
         et compute_facture_status() pour que les deux restent toujours
         coherents entre eux (Sprint 12.7)."""
         facture = self._require_facture(facture_id)
@@ -132,9 +132,9 @@ class PaiementService:
 
     def solde_restant(self, facture_id: int) -> float:
         """Montant reellement restant du sur cette facture : montant TTC
-        diminue de l'acompte deja precise sur la facture ET des paiements
-        enregistres. Ne descend jamais sous zero (un trop-percu eventuel
-        n'apparait pas ici en negatif). Lecture seule : ne modifie jamais la
+        diminue de l'acompte déjà precise sur la facture ET des paiements
+        enregistrés. Ne descend jamais sous zero (un trop-percu eventuel
+        n'apparait pas ici en negatif). Lecture seule : ne modifié jamais la
         facture."""
         facture = self._require_facture(facture_id)
         montant = float(facture.montant or 0)
@@ -144,10 +144,10 @@ class PaiementService:
         """Determine automatiquement l'etat de reglement d'une facture a
         partir de l'acompte et des paiements : rien de couvert -> 'pending'
         (En attente), couverture partielle -> 'partial' (Partiel), montant
-        TTC entierement couvert (acompte + paiements) -> 'paid' (Paye).
-        Calcul pur, en lecture seule : ne modifie JAMAIS la facture
+        TTC entierement couvert (acompte + paiements) -> 'paid' (Payé).
+        Calcul pur, en lecture seule : ne modifié JAMAIS la facture
         elle-meme. Utilise par _sync_facture_status() pour appliquer
-        automatiquement le resultat (jamais duplique)."""
+        automatiquement le resultat (jamais dupliqué)."""
         facture = self._require_facture(facture_id)
         montant = float(facture.montant or 0)
         credite = self._credite(facture_id)
@@ -163,21 +163,21 @@ class PaiementService:
         facture = self.facture_service.get_facture(paiement.facture_id)
 
         lines = [
-            f"Reference : {paiement.reference or '(automatique)'}",
+            f"Référence : {paiement.reference or '(automatique)'}",
             f"Date : {paiement.date_paiement or '-'}",
             f"Statut : {self.STATUSES.get(paiement.status, paiement.status)}",
             f"Facture : {facture.facture_number if facture else '-'}",
             f"Organisateur : {facture.organisateur_structure if facture else '-'}",
             f"Montant du paiement : {float(paiement.montant or 0):.2f} EUR",
             f"Mode de paiement : {paiement.mode_paiement or '-'}",
-            f"Reference bancaire : {paiement.reference_bancaire or '-'}",
+            f"Référence bancaire : {paiement.reference_bancaire or '-'}",
         ]
 
         if facture is not None and facture.id is not None:
             lines.extend([
                 f"Montant facture : {float(facture.montant or 0):.2f} EUR",
-                f"Deja paye : {self.total_paid(facture.id):.2f} EUR",
-                f"Reste a payer : {self.solde_restant(facture.id):.2f} EUR",
+                f"Déjà payé : {self.total_paid(facture.id):.2f} EUR",
+                f"Reste à payer : {self.solde_restant(facture.id):.2f} EUR",
             ])
 
         if paiement.observations:
@@ -207,7 +207,7 @@ class PaiementService:
         paiement.status = paiement.status or "pending"
 
         if paiement.facture_id is None:
-            raise ValueError("Le paiement doit etre rattache a une facture.")
+            raise ValueError("Le paiement doit être rattache a une facture.")
 
         self._require_facture(paiement.facture_id)
 
@@ -220,7 +220,7 @@ class PaiementService:
             paiement.montant = 0.0
 
         if paiement.montant <= 0:
-            raise ValueError("Le montant du paiement doit etre superieur a zero.")
+            raise ValueError("Le montant du paiement doit être superieur a zero.")
 
     def _require_facture(self, facture_id: int) -> Facture:
         facture = self.facture_service.get_facture(facture_id)
@@ -230,7 +230,7 @@ class PaiementService:
 
     def _sync_facture_status(self, facture_id: int | None) -> None:
         """Met a jour automatiquement UNIQUEMENT le statut de la facture
-        liee, a partir de compute_facture_status() (jamais duplique). Aucun
+        liee, a partir de compute_facture_status() (jamais dupliqué). Aucun
         autre champ de la facture (montant inclus) n'est touche."""
         if facture_id is None:
             return

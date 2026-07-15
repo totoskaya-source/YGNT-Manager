@@ -292,5 +292,100 @@ avec pré-remplissage complet (artiste, organisateur, lieu déjà connus).
 
 ---
 
+## 11. Équipe de prestation (`prestation_participants`) — Sprint 15.5
+
+**Réalisé** (contrairement au reste de ce document, qui restait au stade de
+la conception : cette section documente une implémentation livrée).
+
+### Principe
+
+Le contrat de cession, le devis et la facture continuent de fonctionner
+**uniquement** avec Organisateur / Formation / Prestation — la Formation
+(`prestations.artist_id`) représente exclusivement **le spectacle vendu**,
+jamais les personnes qui le jouent. Cette règle est intangible et n'est pas
+remise en cause par ce qui suit.
+
+Il manquait cependant un moyen de savoir **qui participe réellement** à une
+prestation (les musiciens d'une Formation, un technicien, un road manager...)
+sans jamais mélanger cette information avec ce qui alimente un document
+commercial. C'est le rôle de l'**Équipe de prestation** : une donnée
+strictement interne, indépendante du contrat de cession.
+
+### Structure de table
+
+```
+prestation_participants
+├── id              INTEGER PK AUTOINCREMENT
+├── prestation_id   INTEGER NOT NULL   FK -> prestations(id) ON DELETE CASCADE
+├── artiste_id      INTEGER NOT NULL   FK -> artists(id)     ON DELETE CASCADE
+├── role            TEXT                -- optionnel
+├── ordre           INTEGER             -- optionnel
+├── created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+├── updated_at      TEXT
+
+UNIQUE(prestation_id, artiste_id)
+```
+
+- Relation many-to-many : une Prestation possède 0..N participants ; un
+  Artiste participe à 0..N prestations.
+- Aucune duplication de donnée Artiste — seule la relation (qui, quel rôle,
+  quel ordre d'affichage) est stockée ici.
+- `role` et `ordre` sont facultatifs : une ligne sans rôle ni ordre est
+  parfaitement valide.
+- Contrainte `UNIQUE(prestation_id, artiste_id)` : un même artiste ne peut
+  apparaître qu'une seule fois dans l'équipe d'une même prestation.
+- `ON DELETE CASCADE` des deux côtés : supprimer une Prestation ou un Artiste
+  retire simplement les lignes de participation correspondantes, sans jamais
+  supprimer l'autre entité — cohérent avec la nature de simple table de
+  liaison (à la différence de `contracts.artist_id`, qui cascade sur un
+  document commercial complet, l'équipe de prestation ne porte aucune donnée
+  propre à perdre au-delà de la relation elle-même).
+
+### Règle métier intangible
+
+Les participants sont des données **internes**. Ils ne doivent **jamais**
+être injectés automatiquement dans un contrat de cession, un devis ou une
+facture — ces trois documents ne lisent ni n'écrivent jamais
+`prestation_participants`. Vérifié par test (`test_prestation_participants_migration.py`)
+au niveau du schéma (aucune colonne liée sur `contracts`/`devis`/`factures`)
+et au niveau fonctionnel (créer un contrat de cession n'ajoute aucune ligne
+dans `prestation_participants`, et réciproquement).
+
+### Consommateurs
+
+Cette donnée sert, dès maintenant ou à terme :
+
+- au **module CDDU** (`docs/CDDU_ARCHITECTURE.md`) — le futur générateur de
+  contrats de travail utilisera exclusivement `prestation_participants` pour
+  déterminer quels contrats créer et pour quels artistes ;
+- aux futures **feuilles de présence** ;
+- aux futures **feuilles de route** ;
+- aux futures **statistiques** (nombre de dates par musicien, etc.) ;
+- aux futurs **calculs de coûts** ;
+- à une future **intégration de signature électronique**.
+
+### Évolution future sans changement d'architecture
+
+Le champ `role` est un texte libre, volontairement non contraint par une
+énumération figée : l'équipe pourra, à terme, accueillir aussi bien des
+musiciens que des danseurs, des techniciens, un road manager ou des invités,
+sans qu'aucune migration de schéma ne soit nécessaire — il s'agit toujours de
+la même ligne (prestation, artiste, rôle, ordre).
+
+### Ce qui ne change pas
+
+- `prestations.artist_id` (Formation vendue) reste inchangé, dans son rôle
+  exact.
+- Aucun impact sur `contracts`, `devis`, `factures` — ni colonne ajoutée, ni
+  lecture, ni écriture automatique.
+- Aucune UI, aucun écran, aucun bouton, aucun formulaire n'accompagne cette
+  livraison : migration, modèle (`app/models/prestation_participant.py`),
+  repository (`app/repositories/prestation_participant_repository.py`) et
+  service (`app/services/prestation_participant_service.py`) uniquement.
+
+---
+
 Ce document constitue la référence à utiliser pour le développement futur du
-module Prestations. Aucune implémentation n'a été réalisée à ce stade.
+module Prestations. La section 11 (Équipe de prestation) est la seule partie
+de ce document effectivement implémentée à ce stade ; le reste demeure au
+stade de la conception.

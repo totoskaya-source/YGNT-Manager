@@ -115,10 +115,10 @@ class Devis:
     def status_label(self) -> str:
         labels = {
             "draft": "Brouillon",
-            "sent": "Envoye",
-            "accepted": "Accepte",
-            "refused": "Refuse",
-            "expired": "Expire",
+            "sent": "Envoyé",
+            "accepted": "Accepté",
+            "refused": "Refusé",
+            "expired": "Expiré",
         }
         return labels.get(self.status, self.status)
 

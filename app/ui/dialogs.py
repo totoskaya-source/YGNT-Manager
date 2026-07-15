@@ -24,7 +24,14 @@ def notify_success(parent: Any, message: str) -> None:
     """Confirmation de succes uniforme dans tout le logiciel : meme titre,
     meme style, pour toute action reussie (creation, modification,
     generation de document, enregistrement d'un paiement...)."""
-    QMessageBox.information(parent, "Succes", message)
+    QMessageBox.information(parent, "Succès", message)
+
+
+def notify_error(parent: Any, message: str) -> None:
+    """Message d'erreur uniforme dans tout le logiciel : meme titre, meme
+    style, pour toute exception remontee a l'utilisateur (echec de
+    generation DOCX/PDF, etc.)."""
+    QMessageBox.warning(parent, "Erreur", message)
 
 
 def open_folder(path: Path) -> None:

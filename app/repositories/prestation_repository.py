@@ -35,6 +35,7 @@ class PrestationRepository(BaseRepository):
                 date_fin,
                 artist_id,
                 organization_id,
+                formation_id,
                 lieu_nom,
                 lieu_adresse,
                 lieu_postal_code,
@@ -42,7 +43,7 @@ class PrestationRepository(BaseRepository):
                 notes
             )
             VALUES(
-                ?,?,?,?,?,?,?,?,?,?,?,?,?
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?
             )
         """, (
             prestation.reference,
@@ -53,6 +54,7 @@ class PrestationRepository(BaseRepository):
             prestation.date_fin,
             prestation.artist_id,
             prestation.organization_id,
+            prestation.formation_id,
             prestation.lieu_nom,
             prestation.lieu_adresse,
             prestation.lieu_postal_code,
@@ -75,6 +77,7 @@ class PrestationRepository(BaseRepository):
                 date_fin=?,
                 artist_id=?,
                 organization_id=?,
+                formation_id=?,
                 lieu_nom=?,
                 lieu_adresse=?,
                 lieu_postal_code=?,
@@ -93,6 +96,7 @@ class PrestationRepository(BaseRepository):
             prestation.date_fin,
             prestation.artist_id,
             prestation.organization_id,
+            prestation.formation_id,
             prestation.lieu_nom,
             prestation.lieu_adresse,
             prestation.lieu_postal_code,

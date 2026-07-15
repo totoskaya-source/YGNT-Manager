@@ -41,28 +41,60 @@ class ArtistService:
         self.repository.delete(artist_id)
 
     def _validate(self, artist: Artist) -> None:
-        if not artist.legal_name.strip() and not artist.stage_name.strip():
-            raise ValueError("Le nom legal ou le nom de scene est obligatoire.")
+        # Toutes les valeurs passent par (value or "") avant .strip() : un
+        # champ optionnel jamais renseigne est NULL en SQLite, donc None une
+        # fois reconstruit par ArtistRepository (Artist(**dict(row))) - un
+        # .strip() direct sur None levait AttributeError et interrompait
+        # l'enregistrement AVANT d'atteindre l'UPDATE (cause reelle du bug
+        # "champs non sauvegardes" : ce n'etait pas un probleme de
+        # sauvegarde, l'appel plantait avant).
+        if not (artist.legal_name or "").strip() and not (artist.stage_name or "").strip():
+            raise ValueError("Le nom légal ou le nom de scène est obligatoire.")
 
-        artist.legal_name = artist.legal_name.strip()
-        artist.stage_name = artist.stage_name.strip()
-        artist.email = artist.email.strip()
-        artist.phone = artist.phone.strip()
-        artist.instrument = artist.instrument.strip()
-        artist.status = artist.status.strip()
-        artist.city = artist.city.strip()
-        artist.notes = artist.notes.strip()
+        artist.qualification = (artist.qualification or "").strip()
+        if not artist.qualification:
+            # Obligatoire (Sprint 18.2) : le CDDU affiche "en qualite de
+            # {{qualification}}" sans jamais coder de valeur par defaut en
+            # dur - la donnee doit toujours venir de cette fiche. En
+            # pratique, le QComboBox d'ArtistDialog ne transmet jamais de
+            # chaine vide (il a toujours une selection courante) : cette
+            # exception ne protege que les appels directs au Service.
+            raise ValueError("La qualification est obligatoire.")
+
+        artist.legal_name = (artist.legal_name or "").strip()
+        artist.first_name = (artist.first_name or "").strip()
+        artist.stage_name = (artist.stage_name or "").strip()
+        artist.address = (artist.address or "").strip()
+        artist.postal_code = (artist.postal_code or "").strip()
+        artist.city = (artist.city or "").strip()
+        artist.email = (artist.email or "").strip()
+        artist.phone = (artist.phone or "").strip()
+        artist.instrument = (artist.instrument or "").strip()
+        artist.secondary_instruments = (artist.secondary_instruments or "").strip()
+        artist.status = (artist.status or "").strip()
+        artist.birth_date = (artist.birth_date or "").strip()
+        artist.birth_place = (artist.birth_place or "").strip()
+        artist.social_number = (artist.social_number or "").strip()
+        artist.conges_spectacle_number = (artist.conges_spectacle_number or "").strip()
+        artist.siren = (artist.siren or "").strip()
+        artist.siret = (artist.siret or "").strip()
+        artist.ape = (artist.ape or "").strip()
+        artist.licence = (artist.licence or "").strip()
+        artist.iban = (artist.iban or "").strip()
+        artist.bic = (artist.bic or "").strip()
+        artist.notes = (artist.notes or "").strip()
+        artist.comments = (artist.comments or "").strip()
 
         # Champs marketing/informatifs uniquement : jamais utilises dans un
         # devis, un contrat ou une facture.
-        artist.style_musical = artist.style_musical.strip()
-        artist.description = artist.description.strip()
-        artist.logo_path = artist.logo_path.strip()
-        artist.photo_path = artist.photo_path.strip()
-        artist.site_internet = artist.site_internet.strip()
-        artist.facebook = artist.facebook.strip()
-        artist.instagram = artist.instagram.strip()
-        artist.youtube = artist.youtube.strip()
+        artist.style_musical = (artist.style_musical or "").strip()
+        artist.description = (artist.description or "").strip()
+        artist.logo_path = (artist.logo_path or "").strip()
+        artist.photo_path = (artist.photo_path or "").strip()
+        artist.site_internet = (artist.site_internet or "").strip()
+        artist.facebook = (artist.facebook or "").strip()
+        artist.instagram = (artist.instagram or "").strip()
+        artist.youtube = (artist.youtube or "").strip()
 
         # Le cachet habituel (fee) n'est plus lu ni ecrit par le service : la
         # colonne reste en base pour compatibilite mais n'est plus utilisee

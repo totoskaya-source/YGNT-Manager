@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from app.models.paiement import Paiement
 from app.services.facture_service import FactureService
 from app.services.paiement_service import PaiementService
-from app.ui.theme import style_date_edit
+from app.ui.theme import required_label, style_date_edit
 
 DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 850
@@ -114,11 +114,11 @@ class PaiementDialog(QDialog):
         for code, label in PaiementService.STATUSES.items():
             self.status.addItem(label, code)
 
-        form.addRow("Reference", self.reference)
-        form.addRow("Date", self.date_paiement)
+        form.addRow("Référence", self.reference)
+        form.addRow(required_label("Date"), self.date_paiement)
         form.addRow("Statut", self.status)
 
-        self.tabs.addTab(self._wrap_in_scroll(content), "General")
+        self.tabs.addTab(self._wrap_in_scroll(content), "Général")
 
     def _build_facture_tab(self) -> None:
         content = QWidget()
@@ -138,12 +138,12 @@ class PaiementDialog(QDialog):
         self.facture_reste_a_payer = QLineEdit()
         self.facture_reste_a_payer.setReadOnly(True)
 
-        form.addRow("Facture", self.facture_combo)
-        form.addRow("Reference", self.facture_reference)
+        form.addRow(required_label("Facture"), self.facture_combo)
+        form.addRow("Référence", self.facture_reference)
         form.addRow("Organisateur", self.facture_organisateur)
         form.addRow("Montant facture", self.facture_montant)
-        form.addRow("Deja paye", self.facture_deja_paye)
-        form.addRow("Reste a payer", self.facture_reste_a_payer)
+        form.addRow("Déjà payé", self.facture_deja_paye)
+        form.addRow("Reste à payer", self.facture_reste_a_payer)
 
         self.tabs.addTab(self._wrap_in_scroll(content), "Facture")
 
@@ -161,9 +161,9 @@ class PaiementDialog(QDialog):
 
         self.reference_bancaire = QLineEdit()
 
-        form.addRow("Montant", self.montant)
+        form.addRow(required_label("Montant"), self.montant)
         form.addRow("Mode de paiement", self.mode)
-        form.addRow("Reference bancaire", self.reference_bancaire)
+        form.addRow("Référence bancaire", self.reference_bancaire)
 
         self.tabs.addTab(self._wrap_in_scroll(content), "Paiement")
 
@@ -184,12 +184,12 @@ class PaiementDialog(QDialog):
         self.preview_text.setReadOnly(True)
         layout.addWidget(self.preview_text)
 
-        self.tabs.addTab(content, "Apercu")
+        self.tabs.addTab(content, "Aperçu")
 
     # ===== Liste deroulante Facture =====
 
     def _reload_facture_choices(self) -> None:
-        self.facture_combo.addItem("(Selectionner une facture)", None)
+        self.facture_combo.addItem("(Sélectionner une facture)", None)
         for facture in self.facture_service.list_factures():
             label = facture.facture_number or f"Facture #{facture.id}"
             self.facture_combo.addItem(label, facture.id)

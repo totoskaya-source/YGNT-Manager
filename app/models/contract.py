@@ -13,6 +13,12 @@ class Contract:
     organization_id: Optional[int] = None
     prestation_id: Optional[int] = None
     producteur_id: Optional[int] = None
+    # Nouvelle Formation (Sprint 18.1) - remplace artist_id comme source pour
+    # tout NOUVEAU contrat ; artist_id est conserve uniquement pour la
+    # compatibilite des contrats deja enregistres, jamais reecrit depuis le
+    # dialogue. Le contrat de cession ne depend plus jamais d'une fiche
+    # Artiste individuelle.
+    formation_id: Optional[int] = None
 
     event_name: str = ""
     venue: str = ""
@@ -131,8 +137,8 @@ class Contract:
     def status_label(self) -> str:
         labels = {
             "draft": "Brouillon",
-            "validated": "Valide",
-            "signed": "Signe",
+            "validated": "Validé",
+            "signed": "Signé",
         }
         return labels.get(self.status, self.status)
 

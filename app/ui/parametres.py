@@ -17,12 +17,12 @@ class ParametresPage(QWidget):
 
         header = QHBoxLayout()
 
-        title = QLabel("Parametres")
+        title = QLabel("Paramètres")
         style_page_title(title)
         header.addWidget(title)
         header.addStretch()
 
-        self.btn_about = QPushButton("A propos...")
+        self.btn_about = QPushButton("À propos...")
         self.btn_about.clicked.connect(self.show_about)
         header.addWidget(self.btn_about)
 

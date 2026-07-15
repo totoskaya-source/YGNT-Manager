@@ -28,10 +28,11 @@ from app.contracts.pdf_converter import PdfConversionTimeoutError
 from app.models.contract import Contract
 from app.services.artist_service import ArtistService
 from app.services.contract_service import ContractService
+from app.services.formation_service import FormationService
 from app.services.organization_service import OrganizationService
 from app.ui.background_task import run_task_with_progress
-from app.ui.dialogs import notify_success, open_folder
-from app.ui.theme import style_date_edit
+from app.ui.dialogs import notify_error, notify_success, open_folder
+from app.ui.theme import required_label, style_date_edit
 
 DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 850
@@ -45,13 +46,19 @@ class ContractDialog(QDialog):
         service: ContractService | None = None,
         artist_service: ArtistService | None = None,
         organization_service: OrganizationService | None = None,
+        formation_service: FormationService | None = None,
         initial_contract: Contract | None = None,
     ) -> None:
         super().__init__(parent)
 
         self.service = service or ContractService()
+        # artist_service n'est plus utilise par ce dialogue depuis le
+        # Sprint 18.1 (le contrat de cession ne depend plus jamais d'une
+        # fiche Artiste) : conserve uniquement pour ne pas casser les appels
+        # existants (ContractsPage, PrestationDialog, PrestationsPage).
         self.artist_service = artist_service or ArtistService()
         self.organization_service = organization_service or OrganizationService()
+        self.formation_service = formation_service or FormationService()
         self._source_contract = contract
         # initial_contract permet de pre-remplir un NOUVEAU contrat (ex. depuis une
         # prestation) sans basculer le dialogue en mode "modification".
@@ -72,7 +79,7 @@ class ContractDialog(QDialog):
 
         # Le numero de contrat reste visible quel que soit l'onglet actif.
         header = QHBoxLayout()
-        header.addWidget(QLabel("Numero de contrat :"))
+        header.addWidget(QLabel("Numéro de contrat :"))
         self.contract_number = QLineEdit()
         self.contract_number.setReadOnly(True)
         self.contract_number.setMaximumWidth(200)
@@ -83,7 +90,7 @@ class ContractDialog(QDialog):
         self.tabs = QTabWidget()
         layout.addWidget(self.tabs, 1)
 
-        self._build_artist_tab()
+        self._build_formation_tab()
         self._build_organizer_tab()
         self._build_performance_tab()
         self._build_financial_tab()
@@ -109,10 +116,10 @@ class ContractDialog(QDialog):
 
         if self._source_contract is None:
             # Nouveau contrat (eventuellement pre-rempli depuis une prestation) :
-            # on derive les details complets depuis les fiches Artiste/Organisateur
+            # on derive les details complets depuis les fiches Formation/Organisateur
             # liees. Pour un contrat existant, l'instantane deja enregistre est
             # conserve tel quel (jamais ecrase par les donnees actuelles des fiches).
-            self._on_artist_selected(self.artist_combo.currentIndex())
+            self._on_formation_selected(self.formation_combo.currentIndex())
             self._on_organization_selected(self.organization_combo.currentIndex())
 
         self._refresh_preview()
@@ -121,7 +128,7 @@ class ContractDialog(QDialog):
 
         # Connectes apres le remplissage initial : un changement manuel de
         # l'utilisateur declenche l'auto-remplissage, pas le chargement du formulaire.
-        self.artist_combo.currentIndexChanged.connect(self._on_artist_selected)
+        self.formation_combo.currentIndexChanged.connect(self._on_formation_selected)
         self.organization_combo.currentIndexChanged.connect(self._on_organization_selected)
         self.tabs.currentChanged.connect(self._on_tab_changed)
 
@@ -138,12 +145,17 @@ class ContractDialog(QDialog):
 
     # ===== Construction des onglets =====
 
-    def _build_artist_tab(self) -> None:
+    def _build_formation_tab(self) -> None:
+        """Le contrat de cession ne depend plus jamais d'une fiche Artiste
+        (Sprint 18.1) : cet onglet ne montre et n'edite que des informations
+        de Formation (le groupe). Les musiciens qui la composent
+        (formation_artistes) et l'équipe de prestation (prestation_participants,
+        reservee au CDDU) n'apparaissent jamais ici - regle intangible."""
         content = QWidget()
         form = QFormLayout(content)
 
-        self.artist_combo = QComboBox()
-        self._reload_artist_choices()
+        self.formation_combo = QComboBox()
+        self._reload_formation_choices()
 
         self.artiste_nom = QLineEdit()
         self.artiste_adresse = QLineEdit()
@@ -151,33 +163,26 @@ class ContractDialog(QDialog):
         self.artiste_city = QLineEdit()
         self.artiste_phone = QLineEdit()
         self.artiste_email = QLineEdit()
-        self.artiste_siren = QLineEdit()
         self.artiste_siret = QLineEdit()
         self.artiste_ape = QLineEdit()
         self.artiste_licence = QLineEdit()
         self.artiste_iban = QLineEdit()
         self.artiste_bic = QLineEdit()
-        self.artiste_social_number = QLineEdit()
-        self.artiste_notes = QTextEdit()
-        self.artiste_notes.setFixedHeight(70)
 
-        form.addRow("Artiste", self.artist_combo)
+        form.addRow("Formation", self.formation_combo)
         form.addRow("Nom", self.artiste_nom)
         form.addRow("Adresse", self.artiste_adresse)
         form.addRow("Code postal", self.artiste_postal_code)
         form.addRow("Ville", self.artiste_city)
-        form.addRow("Telephone", self.artiste_phone)
+        form.addRow("Téléphone", self.artiste_phone)
         form.addRow("Email", self.artiste_email)
-        form.addRow("SIREN", self.artiste_siren)
         form.addRow("SIRET", self.artiste_siret)
         form.addRow("Code APE", self.artiste_ape)
         form.addRow("Licence", self.artiste_licence)
         form.addRow("IBAN", self.artiste_iban)
         form.addRow("BIC", self.artiste_bic)
-        form.addRow("Numero de securite sociale", self.artiste_social_number)
-        form.addRow("Notes", self.artiste_notes)
 
-        self.tabs.addTab(self._wrap_in_scroll(content), "Artiste")
+        self.tabs.addTab(self._wrap_in_scroll(content), "Formation")
 
     def _build_organizer_tab(self) -> None:
         content = QWidget()
@@ -205,20 +210,20 @@ class ContractDialog(QDialog):
         self.organisateur_notes = QTextEdit()
         self.organisateur_notes.setFixedHeight(70)
 
-        form.addRow("Organisateur", self.organization_combo)
+        form.addRow(required_label("Organisateur"), self.organization_combo)
         form.addRow("Structure", self.organisateur)
         form.addRow("Forme juridique", self.organisateur_forme)
         form.addRow("Adresse", self.organisateur_adresse)
         form.addRow("Code postal", self.organisateur_postal_code)
         form.addRow("Ville", self.organisateur_city)
         form.addRow("SIRET", self.organisateur_siret)
-        form.addRow("Telephone", self.organisateur_phone)
+        form.addRow("Téléphone", self.organisateur_phone)
         form.addRow("Email", self.organisateur_email)
         form.addRow("Site internet", self.organisateur_site_internet)
         form.addRow("Code APE", self.organisateur_ape)
         form.addRow("Licence spectacle", self.organisateur_licence)
         form.addRow("TVA intracommunautaire", self.organisateur_tva)
-        form.addRow("Representee par", self.organisateur_representant)
+        form.addRow("Représentée par", self.organisateur_representant)
         form.addRow("Fonction", self.organisateur_fonction)
         form.addRow("IBAN", self.organisateur_iban)
         form.addRow("BIC", self.organisateur_bic)
@@ -252,19 +257,19 @@ class ContractDialog(QDialog):
 
         self.status = QComboBox()
         self.status.addItem("Brouillon", "draft")
-        self.status.addItem("Valide", "validated")
-        self.status.addItem("Signe", "signed")
+        self.status.addItem("Validé", "validated")
+        self.status.addItem("Signé", "signed")
 
-        form.addRow("Spectacle", self.spectacle)
+        form.addRow(required_label("Spectacle"), self.spectacle)
         form.addRow("Date", self.date)
         form.addRow("Lieu (nom de la salle)", self.lieu)
         form.addRow("Adresse de la prestation", self.adresse)
         form.addRow("Code postal", self.postal_code)
         form.addRow("Ville", self.city)
-        form.addRow("Duree", self.duree)
+        form.addRow("Durée", self.duree)
         form.addRow("Loges / convocation", self.convocation)
         form.addRow("Horaire de prestation", self.horaire)
-        form.addRow("Hebergement", self.hebergement)
+        form.addRow("Hébergement", self.hebergement)
         form.addRow("Repas", self.restauration)
         form.addRow("Transport", self.kilometrage)
         form.addRow("Statut", self.status)
@@ -287,13 +292,13 @@ class ContractDialog(QDialog):
         self.acompte.setSuffix(" EUR")
 
         self.cachet_tva = QLineEdit()
-        self.cachet_tva.setPlaceholderText("Ex : 2,10% ou Exoneree")
+        self.cachet_tva.setPlaceholderText("Ex : 2,10% ou Exonérée")
 
         self.mode = QComboBox()
         self.mode.addItems(["Virement", "Cheque"])
 
         self.echeance = QLineEdit()
-        self.echeance.setPlaceholderText("Ex : 30 jours apres la prestation")
+        self.echeance.setPlaceholderText("Ex : 30 jours après la prestation")
 
         self.observations = QTextEdit()
         self.observations.setFixedHeight(90)
@@ -302,10 +307,10 @@ class ContractDialog(QDialog):
         form.addRow("Acompte", self.acompte)
         form.addRow("TVA", self.cachet_tva)
         form.addRow("Mode de paiement", self.mode)
-        form.addRow("Echeance", self.echeance)
+        form.addRow("Échéance", self.echeance)
         form.addRow("Observations", self.observations)
 
-        self.tabs.addTab(self._wrap_in_scroll(content), "Conditions financieres")
+        self.tabs.addTab(self._wrap_in_scroll(content), "Conditions financières")
 
     def _build_preview_tab(self) -> None:
         content = QWidget()
@@ -315,14 +320,14 @@ class ContractDialog(QDialog):
         self.preview_text.setReadOnly(True)
         layout.addWidget(self.preview_text)
 
-        self.tabs.addTab(content, "Apercu")
+        self.tabs.addTab(content, "Aperçu")
 
     def _build_document_actions(self) -> QHBoxLayout:
         actions = QHBoxLayout()
         actions.setSpacing(8)
 
-        self.btn_generate_docx = QPushButton("Generer DOCX")
-        self.btn_generate_pdf = QPushButton("Generer PDF")
+        self.btn_generate_docx = QPushButton("Générer DOCX")
+        self.btn_generate_pdf = QPushButton("Générer PDF")
         self.btn_open_docx = QPushButton("Ouvrir DOCX")
         self.btn_open_pdf = QPushButton("Ouvrir PDF")
         self.btn_open_folder = QPushButton("📂 Ouvrir le dossier des documents")
@@ -342,13 +347,12 @@ class ContractDialog(QDialog):
 
         return actions
 
-    # ===== Listes deroulantes Artiste / Organisateur =====
+    # ===== Listes deroulantes Formation / Organisateur =====
 
-    def _reload_artist_choices(self) -> None:
-        self.artist_combo.addItem("(Aucun)", None)
-        for artist in self.artist_service.list_artists():
-            label = artist.stage_name or artist.legal_name or f"Artiste #{artist.id}"
-            self.artist_combo.addItem(label, artist.id)
+    def _reload_formation_choices(self) -> None:
+        self.formation_combo.addItem("(Aucune)", None)
+        for formation in self.formation_service.list_formations():
+            self.formation_combo.addItem(formation.nom or f"Formation #{formation.id}", formation.id)
 
     def _reload_organization_choices(self) -> None:
         self.organization_combo.addItem("(Aucun / saisie libre)", None)
@@ -356,29 +360,26 @@ class ContractDialog(QDialog):
             label = organization.name or f"Organisateur #{organization.id}"
             self.organization_combo.addItem(label, organization.id)
 
-    def _on_artist_selected(self, _index: int) -> None:
-        artist_id = self.artist_combo.currentData()
-        if artist_id is None:
+    def _on_formation_selected(self, _index: int) -> None:
+        formation_id = self.formation_combo.currentData()
+        if formation_id is None:
             return
 
-        artist = self.artist_service.get_artist(artist_id)
-        if artist is None:
+        formation = self.formation_service.get_formation(formation_id)
+        if formation is None:
             return
 
-        self.artiste_nom.setText(artist.stage_name or artist.legal_name or "")
-        self.artiste_adresse.setText(artist.address or "")
-        self.artiste_postal_code.setText(artist.postal_code or "")
-        self.artiste_city.setText(artist.city or "")
-        self.artiste_phone.setText(artist.phone or "")
-        self.artiste_email.setText(artist.email or "")
-        self.artiste_siren.setText(artist.siren or "")
-        self.artiste_siret.setText(artist.siret or "")
-        self.artiste_ape.setText(artist.ape or "")
-        self.artiste_licence.setText(artist.licence or "")
-        self.artiste_iban.setText(artist.iban or "")
-        self.artiste_bic.setText(artist.bic or "")
-        self.artiste_social_number.setText(artist.social_number or "")
-        self.artiste_notes.setPlainText(artist.notes or "")
+        self.artiste_nom.setText(formation.nom or "")
+        self.artiste_adresse.setText(formation.address or "")
+        self.artiste_postal_code.setText(formation.postal_code or "")
+        self.artiste_city.setText(formation.city or "")
+        self.artiste_phone.setText(formation.phone or "")
+        self.artiste_email.setText(formation.email or "")
+        self.artiste_siret.setText(formation.siret or "")
+        self.artiste_ape.setText(formation.ape or "")
+        self.artiste_licence.setText(formation.licence or "")
+        self.artiste_iban.setText(formation.iban or "")
+        self.artiste_bic.setText(formation.bic or "")
 
         # Le montant n'est jamais pre-rempli depuis la Formation (Sprint 8.8) :
         # il reste toujours une saisie manuelle, par Prestation ou par Contrat.
@@ -472,7 +473,7 @@ class ContractDialog(QDialog):
 
     def generate_docx(self) -> None:
         if self._source_contract is None or self._source_contract.id is None:
-            QMessageBox.information(self, "Generation", "Enregistrez d'abord le contrat.")
+            QMessageBox.information(self, "Génération", "Enregistrez d'abord le contrat.")
             return
 
         try:
@@ -483,7 +484,7 @@ class ContractDialog(QDialog):
 
         response = QMessageBox.question(
             self,
-            "Apercu avant generation",
+            "Aperçu avant generation",
             f"{preview}\n\nGenerer le document DOCX ?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes,
@@ -494,11 +495,11 @@ class ContractDialog(QDialog):
         try:
             self.service.generate_docx(self._source_contract.id)
         except Exception as exc:
-            QMessageBox.warning(self, "Erreur", str(exc))
+            notify_error(self, str(exc))
             return
 
         self._refresh_source_contract()
-        notify_success(self, "Document DOCX genere.")
+        notify_success(self, "Document DOCX généré.")
 
     def generate_pdf(self) -> None:
         if self._source_contract is None or self._source_contract.id is None:
@@ -509,23 +510,23 @@ class ContractDialog(QDialog):
 
         def on_success(_result: object) -> None:
             self._refresh_source_contract()
-            notify_success(self, "Document PDF genere.")
+            notify_success(self, "Document PDF généré.")
 
         def on_error(exc: Exception) -> None:
             if isinstance(exc, PdfConversionTimeoutError):
                 QMessageBox.warning(
                     self,
-                    "Generation PDF",
-                    "La generation du PDF semble bloquee.\n\n"
-                    "Veuillez verifier qu'aucune fenetre Microsoft Word "
+                    "Génération PDF",
+                    "La generation du PDF semble bloquée.\n\n"
+                    "Veuillez vérifier qu'aucune fenêtre Microsoft Word "
                     "n'attend votre intervention.",
                 )
                 return
-            QMessageBox.warning(self, "Erreur", str(exc))
+            notify_error(self, str(exc))
 
         run_task_with_progress(
             self,
-            "Generation du PDF...\nVeuillez patienter.",
+            "Génération du PDF...\nVeuillez patienter.",
             lambda: self.service.export_pdf(contract_id),
             on_success,
             on_error,
@@ -588,7 +589,7 @@ class ContractDialog(QDialog):
         self._update_close_button()
         self._refresh_preview()
 
-        notify_success(self, "Contrat cree." if is_new else "Contrat modifie.")
+        notify_success(self, "Contrat créé." if is_new else "Contrat modifié.")
 
     def show_preview(self) -> None:
         self._refresh_preview()
@@ -598,7 +599,12 @@ class ContractDialog(QDialog):
         contract = Contract(
             id=self._source_contract.id if self._source_contract else None,
             contract_number=self.contract_number.text().strip(),
-            artist_id=self.artist_combo.currentData(),
+            # artist_id n'est plus jamais ecrit depuis ce dialogue (Sprint
+            # 18.1, le contrat de cession ne depend plus d'une fiche
+            # Artiste) : uniquement preserve pour un contrat deja existant
+            # qui en portait un, jamais recree pour un nouveau contrat.
+            artist_id=self._source_contract.artist_id if self._source_contract else None,
+            formation_id=self.formation_combo.currentData(),
             organization_id=self.organization_combo.currentData(),
             prestation_id=(
                 self._source_contract.prestation_id
@@ -640,14 +646,18 @@ class ContractDialog(QDialog):
             artiste_city=self.artiste_city.text().strip(),
             artiste_phone=self.artiste_phone.text().strip(),
             artiste_email=self.artiste_email.text().strip(),
-            artiste_siren=self.artiste_siren.text().strip(),
             artiste_siret=self.artiste_siret.text().strip(),
             artiste_ape=self.artiste_ape.text().strip(),
             artiste_licence=self.artiste_licence.text().strip(),
             artiste_iban=self.artiste_iban.text().strip(),
             artiste_bic=self.artiste_bic.text().strip(),
-            artiste_social_number=self.artiste_social_number.text().strip(),
-            artiste_notes=self.artiste_notes.toPlainText().strip(),
+            # SIREN et numero de securite sociale sont des champs personnels :
+            # une Formation n'en a jamais (Sprint 18.1). Preserves tels quels
+            # pour un contrat deja existant qui en portait un (compatibilite),
+            # jamais resaisis pour un nouveau contrat.
+            artiste_siren=self._source_contract.artiste_siren if self._source_contract else "",
+            artiste_social_number=self._source_contract.artiste_social_number if self._source_contract else "",
+            artiste_notes=self._source_contract.artiste_notes if self._source_contract else "",
             organisateur_structure=self.organisateur.text().strip(),
             organisateur_forme=self.organisateur_forme.text().strip(),
             organisateur_adresse=self.organisateur_adresse.text().strip(),
@@ -700,8 +710,12 @@ class ContractDialog(QDialog):
     def _fill_form(self, contract: Contract) -> None:
         self.contract_number.setText(contract.contract_number or self.service.next_contract_number())
 
-        artist_index = self.artist_combo.findData(contract.artist_id)
-        self.artist_combo.setCurrentIndex(artist_index if artist_index >= 0 else 0)
+        # Compatibilite (Sprint 18.1) : un ancien contrat peut ne porter
+        # qu'un artist_id sans formation_id - le combo Formation reste alors
+        # sur "(Aucune)", mais l'instantane artiste_* deja enregistre (ci-
+        # dessous) continue de s'afficher tel quel, inchange.
+        formation_index = self.formation_combo.findData(contract.formation_id)
+        self.formation_combo.setCurrentIndex(formation_index if formation_index >= 0 else 0)
 
         organization_index = self.organization_combo.findData(contract.organization_id)
         self.organization_combo.setCurrentIndex(organization_index if organization_index >= 0 else 0)
@@ -712,14 +726,11 @@ class ContractDialog(QDialog):
         self.artiste_city.setText(contract.artiste_city or "")
         self.artiste_phone.setText(contract.artiste_phone or "")
         self.artiste_email.setText(contract.artiste_email or "")
-        self.artiste_siren.setText(contract.artiste_siren or "")
         self.artiste_siret.setText(contract.artiste_siret or "")
         self.artiste_ape.setText(contract.artiste_ape or "")
         self.artiste_licence.setText(contract.artiste_licence or "")
         self.artiste_iban.setText(contract.artiste_iban or "")
         self.artiste_bic.setText(contract.artiste_bic or "")
-        self.artiste_social_number.setText(contract.artiste_social_number or "")
-        self.artiste_notes.setPlainText(contract.artiste_notes or "")
 
         self.organisateur.setText(contract.organisateur_structure or "")
         self.organisateur_forme.setText(contract.organisateur_forme or "")

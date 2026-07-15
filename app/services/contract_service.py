@@ -13,23 +13,26 @@ from app.models.devis import Devis
 from app.models.prestation import Prestation
 from app.paths import resource_path
 from app.repositories.contract_repository import ContractRepository
+from app.services.formation_service import FormationService
 from app.services.producteur_service import ProducteurService
 
 
 class ContractService:
     STATUSES = {
         "draft": "Brouillon",
-        "validated": "Valide",
-        "signed": "Signe",
+        "validated": "Validé",
+        "signed": "Signé",
     }
 
     def __init__(
         self,
         repository: ContractRepository | None = None,
         producteur_service: ProducteurService | None = None,
+        formation_service: FormationService | None = None,
     ) -> None:
         self.repository = repository or ContractRepository()
         self.producteur_service = producteur_service or ProducteurService()
+        self.formation_service = formation_service or FormationService()
         self.template_path = resource_path("templates", "contrat_cession.docx")
         self.exports_dir = PROJECT_ROOT / "exports"
 
@@ -42,12 +45,29 @@ class ContractService:
         return [contract for contract in self.list_contracts() if contract.prestation_id == prestation_id]
 
     def build_from_prestation(self, prestation: Prestation) -> Contract:
-        """Prepare un contrat pre-rempli (artiste, organisateur, date, lieu) a partir
-        d'une prestation. Le contrat n'est pas enregistre : c'est un point de depart,
-        toujours modifiable avant validation."""
-        return Contract(
+        """Prepare un contrat pre-rempli (Formation, organisateur, date, lieu)
+        a partir d'une prestation, sans aucune intervention utilisateur
+        supplementaire (Sprint 18.1) : le contrat n'est pas enregistré, c'est
+        un point de depart, toujours modifiable avant validation.
+
+        Le contrat de cession ne depend plus jamais d'une fiche Artiste : la
+        Formation (prestation.formation_id) est l'unique source de l'objet
+        vendu. artist_id est conserve tel quel pour compatibilite (une
+        prestation ancienne peut ne porter que artist_id), mais n'alimente
+        plus aucun champ affiche - seule la Formation le fait desormais.
+
+        Note technique importante : le template contrat_cession.docx n'a
+        jamais imprime les champs artiste_* (aucun placeholder {{artiste_*}}
+        n'existe dans le document - verifie, pas suppose). Le seul champ
+        imprime qui identifie ce qui est vendu est {{spectacle_nom}}. Pour
+        que le contrat créé en un clic affiche reellement le nom de la
+        Formation sans aucune saisie manuelle, spectacle_nom est ici
+        pre-rempli avec le nom de la Formation (reste toujours modifiable
+        avant enregistrement, comme tout le reste)."""
+        contract = Contract(
             prestation_id=prestation.id,
             artist_id=prestation.artist_id,
+            formation_id=prestation.formation_id,
             organization_id=prestation.organization_id,
             prestation_date=prestation.date_debut,
             prestation_lieu=prestation.lieu_nom,
@@ -56,20 +76,61 @@ class ContractService:
             prestation_city=prestation.lieu_city,
         )
 
+        if prestation.formation_id is not None:
+            self._apply_formation_snapshot(contract, prestation.formation_id)
+            contract.spectacle_nom = contract.artiste_nom
+
+        return contract
+
+    def _apply_formation_snapshot(self, contract: Contract, formation_id: int) -> None:
+        """Copie les informations de la Formation dans l'instantane
+        artiste_* du contrat (reutilise tel quel : meme colonnes, meme
+        template DOCX, aucun changement de mise en page). Les champs
+        propres a une personne physique (SIREN, numero de sécurité sociale)
+        ne sont jamais renseignes : une Formation n'est jamais une personne,
+        les musiciens n'apparaissent jamais sur ce contrat."""
+        formation = self.formation_service.get_formation(formation_id)
+        if formation is None:
+            return
+
+        contract.artiste_nom = formation.nom
+        contract.artiste_adresse = formation.address
+        contract.artiste_postal_code = formation.postal_code
+        contract.artiste_city = formation.city
+        contract.artiste_phone = formation.phone
+        contract.artiste_email = formation.email
+        contract.artiste_siret = formation.siret
+        contract.artiste_ape = formation.ape
+        contract.artiste_licence = formation.licence
+        contract.artiste_iban = formation.iban
+        contract.artiste_bic = formation.bic
+
     def build_from_devis(self, devis: Devis) -> Contract:
         """Prepare un contrat pre-rempli (formation, organisateur, objet, date,
-        lieu, conditions financieres) a partir d'un Devis accepte. Le contrat
-        n'est pas enregistre : c'est un nouveau document independant, toujours
-        modifiable avant validation. Le Devis n'est jamais modifie (meme
+        lieu, conditions financières) a partir d'un Devis accepte. Le contrat
+        n'est pas enregistré : c'est un nouveau document independant, toujours
+        modifiable avant validation. Le Devis n'est jamais modifié (meme
         philosophie que build_from_prestation).
 
         Le Producteur n'est volontairement pas copie depuis le Devis : comme
         pour tout nouveau contrat, ContractService.create_contract() lui
         appliquera l'instantane du Producteur actif au moment de la creation
-        (regle deja en vigueur depuis le Sprint 8.6)."""
+        (regle déjà en vigueur depuis le Sprint 8.6).
+
+        Sprint 20 : l'instantane artiste_* du contrat est repris directement
+        de l'instantane formation_* deja fige sur le Devis (jamais recalcule
+        depuis la Formation/l'Artiste d'origine - le Devis, une fois cree,
+        est la source de verite). formation_id n'est reporte sur le contrat
+        que s'il correspond reellement a une Formation ; sinon il est
+        conserve dans artist_id pour compatibilite (devis ancien)."""
+        is_real_formation = (
+            devis.formation_id is not None
+            and self.formation_service.get_formation(devis.formation_id) is not None
+        )
         return Contract(
             prestation_id=devis.prestation_id,
-            artist_id=devis.formation_id,
+            formation_id=devis.formation_id if is_real_formation else None,
+            artist_id=None if is_real_formation else devis.formation_id,
             organization_id=devis.organization_id,
             spectacle_nom=devis.spectacle_nom,
             spectacle_duree=devis.spectacle_duree,
@@ -84,6 +145,17 @@ class ContractService:
             acompte=devis.acompte,
             mode_paiement=devis.mode_paiement,
             echeance=devis.echeance,
+            artiste_nom=devis.formation_nom,
+            artiste_adresse=devis.formation_adresse,
+            artiste_postal_code=devis.formation_postal_code,
+            artiste_city=devis.formation_city,
+            artiste_phone=devis.formation_phone,
+            artiste_email=devis.formation_email,
+            artiste_siret=devis.formation_siret,
+            artiste_ape=devis.formation_ape,
+            artiste_licence=devis.formation_licence,
+            artiste_iban=devis.formation_iban,
+            artiste_bic=devis.formation_bic,
         )
 
     def search_contracts(self, query: str = "", status: str = "all") -> list[Contract]:
@@ -110,7 +182,7 @@ class ContractService:
         contract.contract_number = contract.contract_number or self.next_contract_number()
         self._apply_producteur_snapshot(contract)
         contract_id = self.repository.insert(contract)
-        self.repository.add_history(contract_id, "Creation", "Contrat cree.")
+        self.repository.add_history(contract_id, "Creation", "Contrat créé.")
         return contract_id
 
     def update_contract(self, contract: Contract) -> None:
@@ -119,7 +191,7 @@ class ContractService:
 
         self._prepare(contract)
         self.repository.update(contract)
-        self.repository.add_history(contract.id, "Modification", "Contrat modifie.")
+        self.repository.add_history(contract.id, "Modification", "Contrat modifié.")
 
     def duplicate_contract(self, contract_id: int) -> int:
         contract = self._require(contract_id)
@@ -155,7 +227,7 @@ class ContractService:
         generator.generate(contract, str(output))
 
         self.repository.mark_generated(contract_id, str(output))
-        self.repository.add_history(contract_id, "Generation DOCX", str(output))
+        self.repository.add_history(contract_id, "Génération DOCX", str(output))
         return output
 
     def export_pdf(self, contract_id: int) -> Path:
@@ -176,7 +248,7 @@ class ContractService:
         path = Path(contract.docx_path or "")
 
         if not path.exists():
-            raise FileNotFoundError("Aucun document DOCX genere pour ce contrat.")
+            raise FileNotFoundError("Aucun document DOCX généré pour ce contrat.")
 
         self._open_path(path)
         self.repository.add_history(contract_id, "Ouverture DOCX", str(path))
@@ -187,7 +259,7 @@ class ContractService:
         path = Path(contract.pdf_path or "")
 
         if not path.exists():
-            raise FileNotFoundError("Aucun PDF genere pour ce contrat.")
+            raise FileNotFoundError("Aucun PDF généré pour ce contrat.")
 
         self._open_path(path)
         self.repository.add_history(contract_id, "Ouverture PDF", str(path))
@@ -204,13 +276,13 @@ class ContractService:
     def preview(self, contract: Contract) -> str:
         self._prepare(contract)
         lines = [
-            f"Numero : {contract.contract_number or '(automatique)'}",
+            f"Numéro : {contract.contract_number or '(automatique)'}",
             f"Producteur : {contract.producteur_nom or '-'}",
             f"Forme juridique (producteur) : {contract.producteur_forme_juridique or '-'}",
             f"Adresse producteur : {self._producer_address(contract) or '-'}",
             f"SIRET producteur : {contract.producteur_siret or '-'}",
             f"Licence producteur : {contract.producteur_licence or '-'}",
-            f"Represente par (producteur) : {contract.producteur_representant or '-'}",
+            f"Représenté par (producteur) : {contract.producteur_representant or '-'}",
             f"Fonction (producteur) : {contract.producteur_fonction or '-'}",
             f"Artiste : {contract.artiste_nom or '-'}",
             f"Organisateur : {contract.organisateur_structure or '-'}",
@@ -220,19 +292,19 @@ class ContractService:
             f"Code APE : {contract.organisateur_ape or '-'}",
             f"Licence : {contract.organisateur_licence or '-'}",
             f"TVA intracommunautaire : {contract.organisateur_tva or '-'}",
-            f"Telephone : {contract.organisateur_phone or '-'}",
+            f"Téléphone : {contract.organisateur_phone or '-'}",
             f"Email : {contract.organisateur_email or '-'}",
-            f"Representant : {contract.organisateur_representant or '-'}",
+            f"Représentant : {contract.organisateur_representant or '-'}",
             f"Fonction : {contract.organisateur_fonction or '-'}",
             f"Spectacle : {contract.spectacle_nom or '-'}",
             f"Date : {contract.prestation_date or '-'}",
             f"Lieu de la prestation : {contract.prestation_lieu_complet or '-'}",
-            f"Duree : {contract.spectacle_duree or '-'}",
+            f"Durée : {contract.spectacle_duree or '-'}",
             f"Cachet : {float(contract.cession_montant or 0):.2f} EUR",
             f"Acompte : {float(contract.acompte or 0):.2f} EUR",
             f"TVA : {contract.cachet_tva or '-'}",
             f"Mode de paiement : {contract.mode_paiement or '-'}",
-            f"Echeance : {contract.echeance or '-'}",
+            f"Échéance : {contract.echeance or '-'}",
             f"Statut : {self.STATUSES.get(contract.status, contract.status)}",
         ]
 
@@ -397,7 +469,7 @@ class ContractService:
 
     def _apply_producteur_snapshot(self, contract: Contract) -> None:
         """Copie l'instantane du Producteur actif sur un NOUVEAU contrat. Ne doit
-        jamais etre appele lors d'une modification : le contrat existant conserve
+        jamais être appele lors d'une modification : le contrat existant conserve
         les informations figees a sa creation, meme si la fiche Producteur change
         ensuite (meme principe que l'instantane organisateur/artiste)."""
         if contract.producteur_id is not None:

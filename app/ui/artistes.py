@@ -27,14 +27,11 @@ from app.ui.theme import mark_destructive, style_page_title, style_table
 class ArtistesPage(QWidget):
     HEADERS = (
         "ID",
-        "Nom legal",
-        "Nom de scene",
-        "Instrument",
-        "Style musical",
+        "Nom",
+        "Prénom",
+        "Nom de scène",
+        "Instrument principal",
         "Statut",
-        "Email",
-        "Telephone",
-        "Ville",
     )
 
     def __init__(self, service: ArtistService | None = None) -> None:
@@ -47,7 +44,7 @@ class ArtistesPage(QWidget):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
 
-        title = QLabel("Formations")
+        title = QLabel("Artistes")
         style_page_title(title)
         layout.addWidget(title)
 
@@ -88,7 +85,7 @@ class ArtistesPage(QWidget):
         self.btn_refresh = QPushButton("Actualiser")
 
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Rechercher une formation...")
+        self.search.setPlaceholderText("Rechercher un artiste...")
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self.refresh_table)
 
@@ -113,7 +110,7 @@ class ArtistesPage(QWidget):
             try:
                 self.service.create_artist(dialog.artist)
             except ValueError as exc:
-                QMessageBox.warning(self, "Formation invalide", str(exc))
+                QMessageBox.warning(self, "Artiste invalide", str(exc))
                 return
 
             self.refresh_table()
@@ -122,13 +119,13 @@ class ArtistesPage(QWidget):
         artist_id = self._selected_artist_id()
 
         if artist_id is None:
-            QMessageBox.information(self, "Modification", "Selectionnez une formation.")
+            QMessageBox.information(self, "Modification", "Sélectionnez un artiste.")
             return
 
         artist = self.service.get_artist(artist_id)
 
         if artist is None:
-            QMessageBox.warning(self, "Modification", "Cette formation n'existe plus.")
+            QMessageBox.warning(self, "Modification", "Cet artiste n'existe plus.")
             self.refresh_table()
             return
 
@@ -138,7 +135,7 @@ class ArtistesPage(QWidget):
             try:
                 self.service.update_artist(dialog.artist)
             except ValueError as exc:
-                QMessageBox.warning(self, "Formation invalide", str(exc))
+                QMessageBox.warning(self, "Artiste invalide", str(exc))
                 return
 
             self.refresh_table()
@@ -147,11 +144,11 @@ class ArtistesPage(QWidget):
         artist_id = self._selected_artist_id()
 
         if artist_id is None:
-            QMessageBox.information(self, "Suppression", "Selectionnez une formation.")
+            QMessageBox.information(self, "Suppression", "Sélectionnez un artiste.")
             return
 
         artist = self.service.get_artist(artist_id)
-        label = self._artist_label(artist) if artist else "cette formation"
+        label = self._artist_label(artist) if artist else "cet artiste"
 
         if confirm_delete(self, label):
             self.service.delete_artist(artist_id)
@@ -170,13 +167,10 @@ class ArtistesPage(QWidget):
             values = (
                 artist.id,
                 artist.legal_name,
+                artist.first_name,
                 artist.stage_name,
                 artist.instrument,
-                artist.style_musical,
                 artist.status,
-                artist.email,
-                artist.phone,
-                artist.city,
             )
 
             for column, value in enumerate(values):
@@ -214,6 +208,6 @@ class ArtistesPage(QWidget):
 
     def _artist_label(self, artist: Artist | None) -> str:
         if artist is None:
-            return "cette formation"
+            return "cet artiste"
 
-        return artist.stage_name or artist.legal_name or "cette formation"
+        return artist.stage_name or artist.legal_name or "cet artiste"

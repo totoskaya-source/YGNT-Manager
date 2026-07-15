@@ -23,13 +23,13 @@ from app.services.paiement_service import PaiementService
 from app.ui.dialogs import confirm_delete, notify_success
 from app.ui.facture_dialog import FactureDialog
 from app.ui.paiement_dialog import PaiementDialog
-from app.ui.theme import mark_destructive, style_page_title, style_table
+from app.ui.theme import DateTableWidgetItem, mark_destructive, style_page_title, style_table
 
 
 class FacturesPage(QWidget):
     HEADERS = (
         "ID",
-        "Reference",
+        "Référence",
         "Date",
         "Formation",
         "Organisateur",
@@ -37,6 +37,9 @@ class FacturesPage(QWidget):
         "Montant",
         "Statut",
     )
+    # Index de la colonne Date : trie chronologiquement via
+    # DateTableWidgetItem plutot que comme du texte (v1.0.3, BUG-001).
+    DATE_COLUMN = 2
 
     def __init__(
         self,
@@ -91,7 +94,7 @@ class FacturesPage(QWidget):
         self.btn_edit = QPushButton("Modifier")
         self.btn_delete = QPushButton("Supprimer")
         mark_destructive(self.btn_delete)
-        self.btn_create_paiement = QPushButton("💳 Creer un paiement")
+        self.btn_create_paiement = QPushButton("💳 Créer un paiement")
         self.btn_refresh = QPushButton("Actualiser")
 
         self.search = QLineEdit()
@@ -127,7 +130,7 @@ class FacturesPage(QWidget):
         facture_id = self._selected_facture_id()
 
         if facture_id is None:
-            QMessageBox.information(self, "Modification", "Selectionnez une facture.")
+            QMessageBox.information(self, "Modification", "Sélectionnez une facture.")
             return
 
         facture = self.service.get_facture(facture_id)
@@ -145,7 +148,7 @@ class FacturesPage(QWidget):
         facture_id = self._selected_facture_id()
 
         if facture_id is None:
-            QMessageBox.information(self, "Suppression", "Selectionnez une facture.")
+            QMessageBox.information(self, "Suppression", "Sélectionnez une facture.")
             return
 
         facture = self.service.get_facture(facture_id)
@@ -159,7 +162,7 @@ class FacturesPage(QWidget):
         facture = self._selected_facture()
 
         if facture is None or facture.id is None:
-            QMessageBox.information(self, "Creer un paiement", "Selectionnez une facture.")
+            QMessageBox.information(self, "Créer un paiement", "Sélectionnez une facture.")
             return
 
         # La facture n'est jamais modifiee ici : le paiement est un nouveau
@@ -183,7 +186,7 @@ class FacturesPage(QWidget):
                 QMessageBox.warning(self, "Paiement invalide", str(exc))
                 return
 
-            notify_success(self, "Paiement enregistre.")
+            notify_success(self, "Paiement enregistré.")
             self.refresh_table()
 
     def refresh_table(self) -> None:
@@ -208,7 +211,10 @@ class FacturesPage(QWidget):
             )
 
             for column, value in enumerate(values):
-                item = self._make_item(value)
+                if column == self.DATE_COLUMN:
+                    item = DateTableWidgetItem(value)
+                else:
+                    item = self._make_item(value)
                 if column == 6:
                     # L'ordre importe : EditRole doit etre fixe avant le texte
                     # affiche, sinon Qt reaffiche la valeur brute (voir Devis).

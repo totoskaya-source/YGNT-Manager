@@ -76,6 +76,7 @@ class ProducteurService:
         producteur.bic = producteur.bic.strip()
         producteur.representant = producteur.representant.strip()
         producteur.fonction = producteur.fonction.strip()
+        producteur.convention_collective = producteur.convention_collective.strip()
         producteur.logo_path = producteur.logo_path.strip()
         producteur.site_internet = producteur.site_internet.strip()
         producteur.email = producteur.email.strip()

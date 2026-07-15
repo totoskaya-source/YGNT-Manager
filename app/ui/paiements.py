@@ -22,19 +22,22 @@ from app.services.facture_service import FactureService
 from app.services.paiement_service import PaiementService
 from app.ui.dialogs import confirm_delete
 from app.ui.paiement_dialog import PaiementDialog
-from app.ui.theme import mark_destructive, style_page_title, style_table
+from app.ui.theme import DateTableWidgetItem, mark_destructive, style_page_title, style_table
 
 
 class PaiementsPage(QWidget):
     HEADERS = (
         "ID",
-        "Reference",
+        "Référence",
         "Date",
         "Facture",
         "Montant",
         "Mode de paiement",
         "Statut",
     )
+    # Index de la colonne Date : trie chronologiquement via
+    # DateTableWidgetItem plutot que comme du texte (v1.0.3, BUG-001).
+    DATE_COLUMN = 2
 
     def __init__(
         self,
@@ -126,7 +129,7 @@ class PaiementsPage(QWidget):
         paiement_id = self._selected_paiement_id()
 
         if paiement_id is None:
-            QMessageBox.information(self, "Modification", "Selectionnez un paiement.")
+            QMessageBox.information(self, "Modification", "Sélectionnez un paiement.")
             return
 
         paiement = self.service.get_paiement(paiement_id)
@@ -156,7 +159,7 @@ class PaiementsPage(QWidget):
         paiement_id = self._selected_paiement_id()
 
         if paiement_id is None:
-            QMessageBox.information(self, "Suppression", "Selectionnez un paiement.")
+            QMessageBox.information(self, "Suppression", "Sélectionnez un paiement.")
             return
 
         paiement = self.service.get_paiement(paiement_id)
@@ -190,7 +193,10 @@ class PaiementsPage(QWidget):
             )
 
             for column, value in enumerate(values):
-                item = self._make_item(value)
+                if column == self.DATE_COLUMN:
+                    item = DateTableWidgetItem(value)
+                else:
+                    item = self._make_item(value)
                 if column == 4:
                     item.setData(Qt.ItemDataRole.EditRole, float(value))
                     item.setText(f"{float(value):.2f} EUR")

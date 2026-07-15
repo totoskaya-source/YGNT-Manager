@@ -10,6 +10,7 @@ class ContractRepository(BaseRepository):
     COLUMNS = (
         "contract_number",
         "artist_id",
+        "formation_id",
         "organization_id",
         "prestation_id",
         "producteur_id",

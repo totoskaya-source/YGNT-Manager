@@ -9,13 +9,13 @@ from app.repositories.prestation_repository import PrestationRepository
 class PrestationService:
     STATUSES = {
         "prospection": "Prospection",
-        "devis_envoye": "Devis envoye",
-        "confirmee": "Confirmee",
-        "realisee": "Realisee",
-        "facturee": "Facturee",
-        "soldee": "Soldee",
-        "archivee": "Archivee",
-        "annulee": "Annulee",
+        "devis_envoye": "Devis envoyé",
+        "confirmee": "Confirmée",
+        "realisee": "Réalisée",
+        "facturee": "Facturée",
+        "soldee": "Soldée",
+        "archivee": "Archivée",
+        "annulee": "Annulée",
     }
 
     def __init__(self, repository: PrestationRepository | None = None) -> None:

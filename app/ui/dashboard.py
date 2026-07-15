@@ -40,10 +40,10 @@ BILLING_LABELS = ("CA facture", "CA encaisse", "Factures impayees", "Paiements e
 
 
 class DashboardPage(QWidget):
-    """Page d'accueil de YGNT Manager : vue d'ensemble de l'activite.
+    """Page d'accueil de YGNT Manager : vue d'ensemble de l'activité.
 
     Consultation et navigation uniquement : aucune logique metier n'est
-    recalculee ici, chaque chiffre provient d'une liste deja exposee par un
+    recalculee ici, chaque chiffre provient d'une liste déjà exposee par un
     Service existant (une seule requete par module, jamais repetee entre les
     sections du Dashboard)."""
 
@@ -99,7 +99,7 @@ class DashboardPage(QWidget):
 
         layout.addWidget(self._build_quick_actions_card())
 
-        activity_card, self.activity_layout = self._build_card("Dernieres activites")
+        activity_card, self.activity_layout = self._build_card("Dernières activités")
         layout.addWidget(activity_card)
 
         layout.addStretch()
@@ -250,7 +250,7 @@ class DashboardPage(QWidget):
         upcoming = stats_helper.upcoming_prestations(prestations, limit=1)
 
         if not upcoming:
-            self.next_prestation_label.setText("Aucune prestation planifiee.")
+            self.next_prestation_label.setText("Aucune prestation planifiée.")
             return
 
         prestation = upcoming[0]
@@ -308,7 +308,7 @@ class DashboardPage(QWidget):
         self._clear_layout(self.activity_layout)
 
         if not entries:
-            empty_label = QLabel("Aucune activite pour le moment.")
+            empty_label = QLabel("Aucune activité pour le moment.")
             style_muted_text(empty_label)
             self.activity_layout.addWidget(empty_label)
             return

@@ -4,6 +4,16 @@ Toutes les évolutions notables du logiciel sont consignées ici, par version.
 
 ---
 
+## [v1.0.3] - 2026-07-16
+
+### Corrigé
+- Correction du tri chronologique des colonnes de dates dans les tableaux.
+- Correction de la génération des adresses des CDDU (suppression des doubles virgules).
+
+### Amélioré
+- Mise en place d'un composant réutilisable pour le tri des dates.
+- Ajout de tests de non-régression associés à ces corrections.
+
 ## v1.0.2 — Adresse complète de l'organisateur (Contrat)
 
 - Contrat, bloc Organisateur : l'adresse affichait uniquement la rue (`{{organisateur_adresse}}`) ; le code postal et la ville (déjà saisis et disponibles) sont désormais affichés sur la ligne suivante, sous toutes les formes d'organisateur (particulier, entreprise, association, collectivité).

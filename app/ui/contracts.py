@@ -23,15 +23,15 @@ from app.models.contract import Contract
 from app.services.contract_service import ContractService
 from app.services.facture_service import FactureService
 from app.ui.contract_dialog import ContractDialog
-from app.ui.dialogs import confirm_delete, notify_success
+from app.ui.dialogs import confirm_delete, notify_error, notify_success
 from app.ui.facture_dialog import FactureDialog
-from app.ui.theme import mark_destructive, style_page_title, style_table
+from app.ui.theme import DateTableWidgetItem, mark_destructive, style_page_title, style_table
 
 
 class ContractsPage(QWidget):
     HEADERS = (
         "ID",
-        "Numero",
+        "Numéro",
         "Date",
         "Organisateur",
         "Spectacle",
@@ -39,8 +39,14 @@ class ContractsPage(QWidget):
         "Statut",
         "DOCX",
         "PDF",
-        "Generation",
+        "Génération",
     )
+    # Index de la colonne Date : trie chronologiquement via
+    # DateTableWidgetItem plutot que comme du texte (v1.0.3, BUG-001).
+    # "Génération" (contract.generated_at, colonne 9) n'est pas concernee :
+    # c'est un timestamp SQLite CURRENT_TIMESTAMP (YYYY-MM-DD HH:MM:SS),
+    # deja lexicographiquement = chronologiquement triable en l'etat.
+    DATE_COLUMN = 2
 
     def __init__(
         self,
@@ -96,11 +102,11 @@ class ContractsPage(QWidget):
         self.btn_duplicate = QPushButton("Dupliquer")
         self.btn_delete = QPushButton("Supprimer")
         mark_destructive(self.btn_delete)
-        self.btn_generate = QPushButton("Generer DOCX")
+        self.btn_generate = QPushButton("Générer DOCX")
         self.btn_export_pdf = QPushButton("Export PDF")
         self.btn_open = QPushButton("Ouvrir DOCX")
         self.btn_open_pdf = QPushButton("Ouvrir PDF")
-        self.btn_create_facture = QPushButton("🧾 Creer une facture")
+        self.btn_create_facture = QPushButton("🧾 Créer une facture")
         self.btn_refresh = QPushButton("Actualiser")
         self.btn_history = QPushButton("Historique")
 
@@ -112,8 +118,8 @@ class ContractsPage(QWidget):
         self.status_filter = QComboBox()
         self.status_filter.addItem("Tous les statuts", "all")
         self.status_filter.addItem("Brouillon", "draft")
-        self.status_filter.addItem("Valide", "validated")
-        self.status_filter.addItem("Signe", "signed")
+        self.status_filter.addItem("Validé", "validated")
+        self.status_filter.addItem("Signé", "signed")
         self.status_filter.currentIndexChanged.connect(self.refresh_table)
 
         self.btn_new.clicked.connect(self.new_contract)
@@ -160,7 +166,7 @@ class ContractsPage(QWidget):
         contract = self._selected_contract()
 
         if contract is None:
-            QMessageBox.information(self, "Modification", "Selectionnez un contrat.")
+            QMessageBox.information(self, "Modification", "Sélectionnez un contrat.")
             return
 
         dialog = ContractDialog(self, contract=contract, service=self.service)
@@ -170,12 +176,12 @@ class ContractsPage(QWidget):
     def duplicate_selected_contract(self) -> None:
         contract_id = self._selected_contract_id()
         if contract_id is None:
-            QMessageBox.information(self, "Duplication", "Selectionnez un contrat.")
+            QMessageBox.information(self, "Duplication", "Sélectionnez un contrat.")
             return
 
         self._run_action(
             lambda: self.service.duplicate_contract(contract_id),
-            "Contrat duplique.",
+            "Contrat dupliqué.",
         )
         self.refresh_table()
 
@@ -183,7 +189,7 @@ class ContractsPage(QWidget):
         contract = self._selected_contract()
 
         if contract is None or contract.id is None:
-            QMessageBox.information(self, "Suppression", "Selectionnez un contrat.")
+            QMessageBox.information(self, "Suppression", "Sélectionnez un contrat.")
             return
 
         label = f"le contrat {contract.contract_number or contract.id}"
@@ -191,14 +197,14 @@ class ContractsPage(QWidget):
         if confirm_delete(self, label):
             self._run_action(
                 lambda: self.service.delete_contract(int(contract.id)),
-                "Contrat supprime.",
+                "Contrat supprimé.",
             )
             self.refresh_table()
 
     def generate_selected_docx(self) -> None:
         contract_id = self._selected_contract_id()
         if contract_id is None:
-            QMessageBox.information(self, "Generation", "Selectionnez un contrat.")
+            QMessageBox.information(self, "Génération", "Sélectionnez un contrat.")
             return
 
         contract = self.service.get_contract(contract_id)
@@ -209,7 +215,7 @@ class ContractsPage(QWidget):
         preview = self.service.preview(contract)
         response = QMessageBox.question(
             self,
-            "Apercu avant generation",
+            "Aperçu avant generation",
             f"{preview}\n\nGenerer le document DOCX ?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes,
@@ -220,30 +226,30 @@ class ContractsPage(QWidget):
 
         path = self._run_action(
             lambda: self.service.generate_docx(contract_id),
-            "Document DOCX genere.",
+            "Document DOCX généré.",
         )
         self.refresh_table()
         if path is not None:
-            QMessageBox.information(self, "DOCX", f"Document cree :\n{path}")
+            QMessageBox.information(self, "DOCX", f"Document créé :\n{path}")
 
     def export_selected_pdf(self) -> None:
         contract_id = self._selected_contract_id()
         if contract_id is None:
-            QMessageBox.information(self, "Export PDF", "Selectionnez un contrat.")
+            QMessageBox.information(self, "Export PDF", "Sélectionnez un contrat.")
             return
 
         path = self._run_action(
             lambda: self.service.export_pdf(contract_id),
-            "PDF exporte.",
+            "PDF exporté.",
         )
         self.refresh_table()
         if path is not None:
-            QMessageBox.information(self, "PDF", f"PDF cree :\n{path}")
+            QMessageBox.information(self, "PDF", f"PDF créé :\n{path}")
 
     def open_selected_document(self) -> None:
         contract_id = self._selected_contract_id()
         if contract_id is None:
-            QMessageBox.information(self, "Document", "Selectionnez un contrat.")
+            QMessageBox.information(self, "Document", "Sélectionnez un contrat.")
             return
 
         self._run_action(
@@ -254,7 +260,7 @@ class ContractsPage(QWidget):
     def open_selected_pdf(self) -> None:
         contract_id = self._selected_contract_id()
         if contract_id is None:
-            QMessageBox.information(self, "PDF", "Selectionnez un contrat.")
+            QMessageBox.information(self, "PDF", "Sélectionnez un contrat.")
             return
 
         self._run_action(
@@ -266,7 +272,7 @@ class ContractsPage(QWidget):
         contract = self._selected_contract()
 
         if contract is None:
-            QMessageBox.information(self, "Creer une facture", "Selectionnez un contrat.")
+            QMessageBox.information(self, "Créer une facture", "Sélectionnez un contrat.")
             return
 
         # Le contrat n'est jamais modifie : la facture est un nouveau document
@@ -284,7 +290,7 @@ class ContractsPage(QWidget):
     def show_selected_history(self) -> None:
         contract_id = self._selected_contract_id()
         if contract_id is None:
-            QMessageBox.information(self, "Historique", "Selectionnez un contrat.")
+            QMessageBox.information(self, "Historique", "Sélectionnez un contrat.")
             return
 
         entries = self.service.history(contract_id)
@@ -323,7 +329,10 @@ class ContractsPage(QWidget):
             )
 
             for column, value in enumerate(values):
-                item = self._make_item(value)
+                if column == self.DATE_COLUMN:
+                    item = DateTableWidgetItem(value)
+                else:
+                    item = self._make_item(value)
                 if column == 5:
                     item.setText(f"{float(value):.2f} EUR")
                     item.setData(Qt.ItemDataRole.EditRole, float(value))
@@ -383,7 +392,7 @@ class ContractsPage(QWidget):
         try:
             result = action()
         except Exception as exc:
-            QMessageBox.warning(self, "Erreur", str(exc))
+            notify_error(self, str(exc))
             return None
 
         if success_message:

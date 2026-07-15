@@ -23,22 +23,22 @@ from app.ui.theme import style_muted_text, style_page_title, style_stat_label, s
 ACTIVITY_LABELS = ("Prestations", "Devis", "Contrats", "Factures", "Paiements")
 BILLING_LABELS = ("CA facture", "CA encaisse", "Montant restant a encaisser")
 FACTURE_STATUS_LABELS = (
-    ("paid", "Payees"),
+    ("paid", "Payées"),
     ("partial", "Partielles"),
     ("pending", "En attente"),
-    ("cancelled", "Annulees"),
+    ("cancelled", "Annulées"),
 )
 DEVIS_STATUS_LABELS = (
     ("draft", "Brouillon"),
-    ("sent", "Envoyes"),
-    ("accepted", "Acceptes"),
-    ("refused", "Refuses"),
-    ("expired", "Expires"),
+    ("sent", "Envoyés"),
+    ("accepted", "Acceptés"),
+    ("refused", "Refusés"),
+    ("expired", "Expirés"),
 )
 
 
 class StatistiquesPage(QWidget):
-    """Page Statistiques : vision chiffree de l'activite, en cartes
+    """Page Statistiques : vision chiffree de l'activité, en cartes
     uniquement (aucun graphique, aucune dependance externe).
 
     Toutes les valeurs proviennent des Services existants, une seule
@@ -83,7 +83,7 @@ class StatistiquesPage(QWidget):
         style_page_title(title)
         layout.addWidget(title)
 
-        activity_card, self.activity_tiles = self._build_stats_card("Activite", ACTIVITY_LABELS)
+        activity_card, self.activity_tiles = self._build_stats_card("Activité", ACTIVITY_LABELS)
         layout.addWidget(activity_card)
 
         billing_card, self.billing_tiles = self._build_stats_card("Chiffre d'affaires", BILLING_LABELS)
@@ -210,7 +210,7 @@ class StatistiquesPage(QWidget):
         upcoming = stats_helper.upcoming_prestations(prestations, limit=10)
 
         if not upcoming:
-            empty_label = QLabel("Aucune prestation planifiee.")
+            empty_label = QLabel("Aucune prestation planifiée.")
             style_muted_text(empty_label)
             self.next_prestations_layout.addWidget(empty_label)
             return

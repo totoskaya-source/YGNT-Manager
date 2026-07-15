@@ -32,7 +32,7 @@ class IntermiPaieDialog(QDialog):
 
     YGNT Manager n'effectue et ne stocke jamais aucun calcul de paie : ce
     dialogue se contente de recapituler, en lecture seule, les informations
-    deja connues d'une prestation (aucune ecriture SQLite, aucun nouveau
+    déjà connues d'une prestation (aucune ecriture SQLite, aucun nouveau
     champ), pour aider l'utilisateur a les reporter sur
     https://intermipaie.fr - le seul moteur de simulation officiel.
     """
@@ -55,19 +55,19 @@ class IntermiPaieDialog(QDialog):
         self.devis_service = devis_service or DevisService()
         self.facture_service = facture_service or FactureService()
 
-        self.setWindowTitle("Preparation du calcul de paie")
+        self.setWindowTitle("Préparation du calcul de paie")
         self.setMinimumWidth(440)
 
         self._fields = self._collect_fields(prestation)
 
         layout = QVBoxLayout(self)
 
-        title = QLabel("Preparation du calcul de paie")
+        title = QLabel("Préparation du calcul de paie")
         style_dialog_title(title)
         layout.addWidget(title)
 
         hint = QLabel(
-            "Ces informations recapitulent la prestation pour preparer votre "
+            "Ces informations récapitulent la prestation pour preparer votre "
             "saisie sur le simulateur officiel IntermiPaie. YGNT Manager "
             "n'effectue et ne stocke aucun calcul de paie."
         )
@@ -128,7 +128,7 @@ class IntermiPaieDialog(QDialog):
     def _resolve_montant(self, prestation: Prestation) -> float | None:
         """Le montant n'existe pas sur la Prestation elle-meme : on reutilise
         les services existants pour retrouver le premier montant connu parmi
-        les documents deja rattaches, par ordre de pertinence pour un calcul
+        les documents déjà rattaches, par ordre de pertinence pour un calcul
         de salaire (le cachet artiste du Contrat, a defaut le montant du
         Devis, a defaut celui de la Facture). Purement indicatif : aucune
         valeur n'est jamais recalculee ni stockee."""

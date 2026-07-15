@@ -19,6 +19,9 @@ class Prestation:
 
     artist_id: Optional[int] = None
     organization_id: Optional[int] = None
+    # Nouvelle Formation (groupe) - additif, coexiste avec artist_id (jamais
+    # renomme ni retire pour compatibilite ascendante, voir Sprint 18.0).
+    formation_id: Optional[int] = None
 
     lieu_nom: str = ""
     lieu_adresse: str = ""
@@ -34,12 +37,12 @@ class Prestation:
     def statut_label(self) -> str:
         labels = {
             "prospection": "Prospection",
-            "devis_envoye": "Devis envoye",
-            "confirmee": "Confirmee",
-            "realisee": "Realisee",
-            "facturee": "Facturee",
-            "soldee": "Soldee",
-            "archivee": "Archivee",
-            "annulee": "Annulee",
+            "devis_envoye": "Devis envoyé",
+            "confirmee": "Confirmée",
+            "realisee": "Réalisée",
+            "facturee": "Facturée",
+            "soldee": "Soldée",
+            "archivee": "Archivée",
+            "annulee": "Annulée",
         }
         return labels.get(self.statut, self.statut)

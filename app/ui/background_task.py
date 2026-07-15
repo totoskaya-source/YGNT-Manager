@@ -32,7 +32,7 @@ class BackgroundTaskWorker(QThread):
 
 
 class ProgressDialog(QDialog):
-    """Petite fenetre "Veuillez patienter" avec barre de progression
+    """Petite fenêtre "Veuillez patienter" avec barre de progression
     indeterminee, affichee pendant qu'un BackgroundTaskWorker travaille.
     Sans bouton de fermeture : l'utilisateur ne peut pas la refermer avant
     la fin du traitement (succes, erreur ou timeout)."""

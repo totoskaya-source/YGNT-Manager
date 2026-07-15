@@ -40,7 +40,7 @@ class Paiement:
         labels = {
             "pending": "En attente",
             "partial": "Partiel",
-            "paid": "Paye",
-            "cancelled": "Annule",
+            "paid": "Payé",
+            "cancelled": "Annulé",
         }
         return labels.get(self.status, self.status)

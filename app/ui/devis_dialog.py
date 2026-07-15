@@ -24,12 +24,12 @@ from PySide6.QtWidgets import (
 
 from app.contracts.pdf_converter import PdfConversionTimeoutError
 from app.models.devis import Devis
-from app.services.artist_service import ArtistService
 from app.services.devis_service import DevisService
+from app.services.formation_service import FormationService
 from app.services.organization_service import OrganizationService
 from app.ui.background_task import run_task_with_progress
-from app.ui.dialogs import notify_success, open_folder
-from app.ui.theme import style_date_edit
+from app.ui.dialogs import notify_error, notify_success, open_folder
+from app.ui.theme import required_label, style_date_edit
 
 DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 850
@@ -41,14 +41,14 @@ class DevisDialog(QDialog):
         parent: Any = None,
         devis: Devis | None = None,
         service: DevisService | None = None,
-        artist_service: ArtistService | None = None,
+        formation_service: FormationService | None = None,
         organization_service: OrganizationService | None = None,
         initial_devis: Devis | None = None,
     ) -> None:
         super().__init__(parent)
 
         self.service = service or DevisService()
-        self.artist_service = artist_service or ArtistService()
+        self.formation_service = formation_service or FormationService()
         self.organization_service = organization_service or OrganizationService()
         self._source_devis = devis
         # initial_devis permet de pre-remplir un NOUVEAU devis (ex. depuis une
@@ -151,12 +151,12 @@ class DevisDialog(QDialog):
         for code, label in DevisService.STATUSES.items():
             self.status.addItem(label, code)
 
-        form.addRow("Reference", self.devis_number)
+        form.addRow("Référence", self.devis_number)
         form.addRow("Date", self.date_general)
         form.addRow("Date de validite", self.date_validite)
         form.addRow("Statut", self.status)
 
-        self.tabs.addTab(self._wrap_in_scroll(content), "General")
+        self.tabs.addTab(self._wrap_in_scroll(content), "Général")
 
     def _build_formation_tab(self) -> None:
         content = QWidget()
@@ -202,7 +202,7 @@ class DevisDialog(QDialog):
         form.addRow("Adresse", self.formation_adresse)
         form.addRow("Code postal", self.formation_postal_code)
         form.addRow("Ville", self.formation_city)
-        form.addRow("Telephone", self.formation_phone)
+        form.addRow("Téléphone", self.formation_phone)
         form.addRow("Email", self.formation_email)
         form.addRow("Site internet", self.formation_site_internet)
         form.addRow("SIREN", self.formation_siren)
@@ -211,7 +211,7 @@ class DevisDialog(QDialog):
         form.addRow("Licence", self.formation_licence)
         form.addRow("IBAN", self.formation_iban)
         form.addRow("BIC", self.formation_bic)
-        form.addRow("Numero de securite sociale", self.formation_social_number)
+        form.addRow("Numéro de sécurité sociale", self.formation_social_number)
         form.addRow("Notes", self.formation_notes)
 
         self.tabs.addTab(self._wrap_in_scroll(content), "Formation")
@@ -259,20 +259,20 @@ class DevisDialog(QDialog):
         self.organisateur_notes.setFixedHeight(70)
         self.organisateur_notes.setReadOnly(True)
 
-        form.addRow("Organisateur", self.organization_combo)
+        form.addRow(required_label("Organisateur"), self.organization_combo)
         form.addRow("Nom", self.organisateur_nom)
         form.addRow("Forme juridique", self.organisateur_forme)
         form.addRow("Adresse", self.organisateur_adresse)
         form.addRow("Code postal", self.organisateur_postal_code)
         form.addRow("Ville", self.organisateur_city)
         form.addRow("SIRET", self.organisateur_siret)
-        form.addRow("Telephone", self.organisateur_phone)
+        form.addRow("Téléphone", self.organisateur_phone)
         form.addRow("Email", self.organisateur_email)
         form.addRow("Site internet", self.organisateur_site_internet)
         form.addRow("Code APE", self.organisateur_ape)
         form.addRow("Licence spectacle", self.organisateur_licence)
         form.addRow("TVA intracommunautaire", self.organisateur_tva)
-        form.addRow("Representee par", self.organisateur_representant)
+        form.addRow("Représentée par", self.organisateur_representant)
         form.addRow("Fonction", self.organisateur_fonction)
         form.addRow("IBAN", self.organisateur_iban)
         form.addRow("BIC", self.organisateur_bic)
@@ -294,11 +294,11 @@ class DevisDialog(QDialog):
         self.ville = QLineEdit()
         self.duree = QLineEdit()
 
-        form.addRow("Objet", self.objet)
+        form.addRow(required_label("Objet"), self.objet)
         form.addRow("Date", self.date_prestation)
         form.addRow("Lieu", self.lieu)
         form.addRow("Ville", self.ville)
-        form.addRow("Duree", self.duree)
+        form.addRow("Durée", self.duree)
 
         self.tabs.addTab(self._wrap_in_scroll(content), "Prestation")
 
@@ -312,7 +312,7 @@ class DevisDialog(QDialog):
         self.montant.setSuffix(" EUR")
 
         self.tva = QLineEdit()
-        self.tva.setPlaceholderText("Ex : 2,10% ou Exoneree")
+        self.tva.setPlaceholderText("Ex : 2,10% ou Exonérée")
 
         self.acompte = QDoubleSpinBox()
         self.acompte.setMaximum(1000000)
@@ -323,7 +323,7 @@ class DevisDialog(QDialog):
         self.mode.addItems(["Virement", "Cheque"])
 
         self.echeance = QLineEdit()
-        self.echeance.setPlaceholderText("Ex : 30 jours apres la prestation")
+        self.echeance.setPlaceholderText("Ex : 30 jours après la prestation")
 
         self.notes = QTextEdit()
         self.notes.setFixedHeight(90)
@@ -332,10 +332,10 @@ class DevisDialog(QDialog):
         form.addRow("TVA", self.tva)
         form.addRow("Acompte", self.acompte)
         form.addRow("Mode de paiement", self.mode)
-        form.addRow("Echeance", self.echeance)
+        form.addRow("Échéance", self.echeance)
         form.addRow("Notes", self.notes)
 
-        self.tabs.addTab(self._wrap_in_scroll(content), "Conditions financieres")
+        self.tabs.addTab(self._wrap_in_scroll(content), "Conditions financières")
 
     def _build_preview_tab(self) -> None:
         content = QWidget()
@@ -345,14 +345,14 @@ class DevisDialog(QDialog):
         self.preview_text.setReadOnly(True)
         layout.addWidget(self.preview_text)
 
-        self.tabs.addTab(content, "Apercu")
+        self.tabs.addTab(content, "Aperçu")
 
     def _build_document_actions(self) -> QHBoxLayout:
         actions = QHBoxLayout()
         actions.setSpacing(8)
 
-        self.btn_generate_docx = QPushButton("Generer DOCX")
-        self.btn_generate_pdf = QPushButton("Generer PDF")
+        self.btn_generate_docx = QPushButton("Générer DOCX")
+        self.btn_generate_pdf = QPushButton("Générer PDF")
         self.btn_open_docx = QPushButton("Ouvrir DOCX")
         self.btn_open_pdf = QPushButton("Ouvrir PDF")
         self.btn_open_folder = QPushButton("📂 Ouvrir le dossier des documents")
@@ -375,10 +375,10 @@ class DevisDialog(QDialog):
     # ===== Listes deroulantes Formation / Organisateur =====
 
     def _reload_formation_choices(self) -> None:
-        self.formation_combo.addItem("(Aucun)", None)
-        for artist in self.artist_service.list_artists():
-            label = artist.stage_name or artist.legal_name or f"Formation #{artist.id}"
-            self.formation_combo.addItem(label, artist.id)
+        self.formation_combo.addItem("(Aucune)", None)
+        for formation in self.formation_service.list_formations():
+            label = formation.nom or f"Formation #{formation.id}"
+            self.formation_combo.addItem(label, formation.id)
 
     def _reload_organization_choices(self) -> None:
         self.organization_combo.addItem("(Aucun / saisie libre)", None)
@@ -391,25 +391,25 @@ class DevisDialog(QDialog):
         if formation_id is None:
             return
 
-        artist = self.artist_service.get_artist(formation_id)
-        if artist is None:
+        formation = self.formation_service.get_formation(formation_id)
+        if formation is None:
             return
 
-        self.formation_nom.setText(artist.stage_name or artist.legal_name or "")
-        self.formation_adresse.setText(artist.address or "")
-        self.formation_postal_code.setText(artist.postal_code or "")
-        self.formation_city.setText(artist.city or "")
-        self.formation_phone.setText(artist.phone or "")
-        self.formation_email.setText(artist.email or "")
-        self.formation_site_internet.setText(artist.site_internet or "")
-        self.formation_siren.setText(artist.siren or "")
-        self.formation_siret.setText(artist.siret or "")
-        self.formation_ape.setText(artist.ape or "")
-        self.formation_licence.setText(artist.licence or "")
-        self.formation_iban.setText(artist.iban or "")
-        self.formation_bic.setText(artist.bic or "")
-        self.formation_social_number.setText(artist.social_number or "")
-        self.formation_notes.setPlainText(artist.notes or "")
+        self.formation_nom.setText(formation.nom or "")
+        self.formation_adresse.setText(formation.address or "")
+        self.formation_postal_code.setText(formation.postal_code or "")
+        self.formation_city.setText(formation.city or "")
+        self.formation_phone.setText(formation.phone or "")
+        self.formation_email.setText(formation.email or "")
+        self.formation_site_internet.setText("")
+        self.formation_siren.setText("")
+        self.formation_siret.setText(formation.siret or "")
+        self.formation_ape.setText(formation.ape or "")
+        self.formation_licence.setText(formation.licence or "")
+        self.formation_iban.setText(formation.iban or "")
+        self.formation_bic.setText(formation.bic or "")
+        self.formation_social_number.setText("")
+        self.formation_notes.setPlainText(formation.description or "")
 
     def _on_organization_selected(self, _index: int) -> None:
         organization_id = self.organization_combo.currentData()
@@ -500,7 +500,7 @@ class DevisDialog(QDialog):
 
     def generate_docx(self) -> None:
         if self._source_devis is None or self._source_devis.id is None:
-            QMessageBox.information(self, "Generation", "Enregistrez d'abord le devis.")
+            QMessageBox.information(self, "Génération", "Enregistrez d'abord le devis.")
             return
 
         try:
@@ -511,7 +511,7 @@ class DevisDialog(QDialog):
 
         response = QMessageBox.question(
             self,
-            "Apercu avant generation",
+            "Aperçu avant generation",
             f"{preview}\n\nGenerer le document DOCX ?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes,
@@ -522,11 +522,11 @@ class DevisDialog(QDialog):
         try:
             self.service.generate_docx(self._source_devis.id)
         except Exception as exc:
-            QMessageBox.warning(self, "Erreur", str(exc))
+            notify_error(self, str(exc))
             return
 
         self._refresh_source_devis()
-        notify_success(self, "Document DOCX genere.")
+        notify_success(self, "Document DOCX généré.")
 
     def generate_pdf(self) -> None:
         if self._source_devis is None or self._source_devis.id is None:
@@ -537,23 +537,23 @@ class DevisDialog(QDialog):
 
         def on_success(_result: object) -> None:
             self._refresh_source_devis()
-            notify_success(self, "Document PDF genere.")
+            notify_success(self, "Document PDF généré.")
 
         def on_error(exc: Exception) -> None:
             if isinstance(exc, PdfConversionTimeoutError):
                 QMessageBox.warning(
                     self,
-                    "Generation PDF",
-                    "La generation du PDF semble bloquee.\n\n"
-                    "Veuillez verifier qu'aucune fenetre Microsoft Word "
+                    "Génération PDF",
+                    "La generation du PDF semble bloquée.\n\n"
+                    "Veuillez vérifier qu'aucune fenêtre Microsoft Word "
                     "n'attend votre intervention.",
                 )
                 return
-            QMessageBox.warning(self, "Erreur", str(exc))
+            notify_error(self, str(exc))
 
         run_task_with_progress(
             self,
-            "Generation du PDF...\nVeuillez patienter.",
+            "Génération du PDF...\nVeuillez patienter.",
             lambda: self.service.generate_pdf(devis_id),
             on_success,
             on_error,
@@ -616,7 +616,7 @@ class DevisDialog(QDialog):
         self._update_close_button()
         self._refresh_preview()
 
-        notify_success(self, "Devis cree." if is_new else "Devis modifie.")
+        notify_success(self, "Devis créé." if is_new else "Devis modifié.")
 
     def show_preview(self) -> None:
         self._refresh_preview()

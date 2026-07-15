@@ -9,6 +9,7 @@ class Artist:
 
     stage_name: str = ""
     legal_name: str = ""
+    first_name: str = ""
 
     address: str = ""
     postal_code: str = ""
@@ -18,12 +19,21 @@ class Artist:
     phone: str = ""
 
     instrument: str = ""
+    secondary_instruments: str = ""
     status: str = ""
+    # Qualification juridique (Sprint 18.2) : categorie professionnelle
+    # utilisee par le CDDU pour la mention "en qualite de {{qualification}}"
+    # - jamais codee en dur, toujours issue de cette fiche. Distincte de
+    # `instrument` (specialite technique) : "Danseur"/"Technicien du
+    # spectacle" n'ont pas d'instrument, "Artiste musicien" en a un.
+    qualification: str = ""
     fee: float = 0.0
 
     birth_date: str = ""
+    birth_place: str = ""
 
     social_number: str = ""
+    conges_spectacle_number: str = ""
 
     siren: str = ""
     siret: str = ""
@@ -35,6 +45,7 @@ class Artist:
     bic: str = ""
 
     notes: str = ""
+    comments: str = ""
 
     # Champs marketing/informatifs (Sprint 8.7) : jamais imprimes automatiquement
     # dans un devis, un contrat ou une facture.

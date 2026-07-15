@@ -118,8 +118,8 @@ class Facture:
         labels = {
             "pending": "En attente",
             "partial": "Partiel",
-            "paid": "Payee",
-            "cancelled": "Annulee",
+            "paid": "Payée",
+            "cancelled": "Annulée",
             "draft": "Brouillon",
             "issued": "Emise",
         }

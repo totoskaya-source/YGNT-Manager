@@ -31,7 +31,7 @@ class ProducteursPage(QWidget):
         "Forme juridique",
         "SIRET",
         "Ville",
-        "Telephone",
+        "Téléphone",
         "Email",
         "Actif",
     )
@@ -124,7 +124,7 @@ class ProducteursPage(QWidget):
         producteur_id = self._selected_producteur_id()
 
         if producteur_id is None:
-            QMessageBox.information(self, "Modification", "Selectionnez un producteur.")
+            QMessageBox.information(self, "Modification", "Sélectionnez un producteur.")
             return
 
         producteur = self.service.get_producteur(producteur_id)
@@ -149,7 +149,7 @@ class ProducteursPage(QWidget):
         producteur_id = self._selected_producteur_id()
 
         if producteur_id is None:
-            QMessageBox.information(self, "Suppression", "Selectionnez un producteur.")
+            QMessageBox.information(self, "Suppression", "Sélectionnez un producteur.")
             return
 
         producteur = self.service.get_producteur(producteur_id)
@@ -163,7 +163,7 @@ class ProducteursPage(QWidget):
         producteur_id = self._selected_producteur_id()
 
         if producteur_id is None:
-            QMessageBox.information(self, "Producteur actif", "Selectionnez un producteur.")
+            QMessageBox.information(self, "Producteur actif", "Sélectionnez un producteur.")
             return
 
         try:

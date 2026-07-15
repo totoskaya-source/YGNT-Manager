@@ -1,7 +1,7 @@
 """Theme centralise de YGNT Manager.
 
 Toute couleur, police, taille ou marge utilisee dans l'interface doit venir
-de ce module. Aucune fenetre ne doit coder un style Qt (QSS) en dur : elle
+de ce module. Aucune fenêtre ne doit coder un style Qt (QSS) en dur : elle
 appelle `apply_theme()` une fois au demarrage puis utilise les helpers
 `style_page_title`, `style_section_label` et `mark_destructive` pour
 signaler son intention (titre de page, en-tete de section, action
@@ -10,7 +10,20 @@ destructive) au theme, qui se charge du rendu.
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QDateEdit, QLabel, QPushButton, QTableWidget, QWidget
+from datetime import date
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication,
+    QDateEdit,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QWidget,
+)
+
+from app.dates import parse_french_date
 
 # ===== Palette =====
 
@@ -422,7 +435,7 @@ def _stylesheet() -> str:
 
 def apply_theme(app: QApplication) -> None:
     """Applique le theme a toute l'application. A appeler une seule fois,
-    juste apres la creation du QApplication."""
+    juste après la creation du QApplication."""
     app.setStyle("Fusion")
     app.setStyleSheet(_stylesheet())
 
@@ -483,16 +496,66 @@ def style_table(table: QTableWidget) -> None:
     table.verticalHeader().setDefaultSectionSize(TABLE_ROW_HEIGHT)
 
 
+def required_label(text: str) -> str:
+    """Ajoute un asterisque rouge a un libelle de champ obligatoire, pour
+    QFormLayout.addRow(str, widget) (Sprint 20). QLabel interprete
+    automatiquement le HTML minimal : aucun style Qt code en dur ailleurs,
+    seule la couleur DANGER deja utilisee pour les actions destructives est
+    reutilisee ici, par coherence."""
+    return f'{text} <span style="color:{DANGER};">*</span>'
+
+
 def style_date_edit(date_edit: QDateEdit) -> None:
     """Active le popup calendrier d'un QDateEdit et garantit qu'il s'affiche
     toujours en entier (mois complet, libelles de jours non tronques).
 
-    Le popup est une fenetre Qt::Popup independante : il n'est jamais limite
-    par le layout, le QScrollArea ou la fenetre qui contiennent le champ, et
-    Qt le repositionne deja au-dessus du champ si la place manque en dessous.
+    Le popup est une fenêtre Qt::Popup independante : il n'est jamais limite
+    par le layout, le QScrollArea ou la fenêtre qui contiennent le champ, et
+    Qt le repositionne déjà au-dessus du champ si la place manque en dessous.
     Sans cette taille minimale explicite, la sizeHint de QCalendarWidget est
     sous-estimee avec la police de l'application et le calendrier apparait
     tronque (numeros et abreviations de jours remplaces par "...")."""
     date_edit.setCalendarPopup(True)
     calendar = date_edit.calendarWidget()
     calendar.setMinimumSize(CALENDAR_POPUP_MIN_WIDTH, CALENDAR_POPUP_MIN_HEIGHT)
+
+
+# ===== Tri chronologique des colonnes Date (v1.0.3, BUG-001) =====
+#
+# Tous les tableaux de l'application affichent leurs dates au format
+# francais JJ/MM/AAAA (ecrit par les dialogues via QDate.toString("dd/MM/
+# yyyy")). Un QTableWidgetItem standard trie ce texte lexicographiquement,
+# ce qui n'est pas l'ordre chronologique (ex. "05/01/2026" < "20/12/2025"
+# alors que la seconde date est chronologiquement anterieure). DateTableWidgetItem
+# corrige cela une seule fois ici, pour reutilisation par toute page listant
+# une colonne Date (Prestations, Devis, Contrats, CDDU, Factures, Paiements,
+# et tout futur tableau), sans jamais changer le texte affiche. Le parsing
+# lui-meme (parse_french_date) vit dans app.dates, sans dependance Qt, pour
+# rester utilisable aussi depuis la couche service (voir
+# ContratCdduService.date_range).
+
+
+class DateTableWidgetItem(QTableWidgetItem):
+    """QTableWidgetItem pour une colonne Date : conserve l'affichage francais
+    JJ/MM/AAAA tel quel, mais trie (clic sur l'en-tete, croissant ou
+    decroissant) sur la date chronologique reelle plutot que sur le texte.
+
+    Les lignes sans date exploitable (texte vide ou non reconnu) sont
+    traitees comme la date la plus ancienne possible : elles apparaissent
+    en premier en tri croissant et en dernier en tri decroissant, un
+    comportement stable et previsible plutot qu'une exception.
+
+    Utilisation dans une page (remplace `self._make_item(value)` pour la
+    seule colonne Date) :
+        self.table.setItem(row, DATE_COLUMN, DateTableWidgetItem(text))
+    """
+
+    def __init__(self, text: str) -> None:
+        super().__init__("" if text is None else str(text))
+        self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        self._sort_date = parse_french_date(text)
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, DateTableWidgetItem):
+            return super().__lt__(other)
+        return (self._sort_date or date.min) < (other._sort_date or date.min)

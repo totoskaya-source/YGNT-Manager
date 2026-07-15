@@ -1,7 +1,7 @@
 """Calculs statistiques partages entre le Dashboard et la page Statistiques.
 
 Toutes les fonctions sont pures : elles ne font aucune requete, elles operent
-uniquement sur des listes deja recuperees aupres des Services existants (une
+uniquement sur des listes déjà recuperees aupres des Services existants (une
 seule fois par module, cote appelant). Objectif : le Dashboard et les
 Statistiques ne recalculent jamais deux fois la meme information (cf.
 Sprint 12.2).
@@ -33,7 +33,7 @@ def ca_encaisse(paiements: list[Any]) -> float:
 
 
 def montant_restant_a_encaisser(factures: list[Any], paiements: list[Any]) -> float:
-    """Montant facture non encore encaisse (peut etre negatif en cas de
+    """Montant facture non encore encaisse (peut être negatif en cas de
     trop-percu global)."""
     return round(ca_facture(factures) - ca_encaisse(paiements), 2)
 

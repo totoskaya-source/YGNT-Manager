@@ -11,25 +11,31 @@ from app.models.devis import Devis
 from app.models.prestation import Prestation
 from app.paths import resource_path
 from app.repositories.devis_repository import DevisRepository
+from app.services.artist_service import ArtistService
+from app.services.formation_service import FormationService
 from app.services.producteur_service import ProducteurService
 
 
 class DevisService:
     STATUSES = {
         "draft": "Brouillon",
-        "sent": "Envoye",
-        "accepted": "Accepte",
-        "refused": "Refuse",
-        "expired": "Expire",
+        "sent": "Envoyé",
+        "accepted": "Accepté",
+        "refused": "Refusé",
+        "expired": "Expiré",
     }
 
     def __init__(
         self,
         repository: DevisRepository | None = None,
         producteur_service: ProducteurService | None = None,
+        formation_service: FormationService | None = None,
+        artist_service: ArtistService | None = None,
     ) -> None:
         self.repository = repository or DevisRepository()
         self.producteur_service = producteur_service or ProducteurService()
+        self.formation_service = formation_service or FormationService()
+        self.artist_service = artist_service or ArtistService()
         self.template_path = resource_path("templates", "devis.docx")
         self.exports_dir = PROJECT_ROOT / "exports"
 
@@ -44,11 +50,18 @@ class DevisService:
     def build_from_prestation(self, prestation: Prestation) -> Devis:
         """Prepare un devis pre-rempli (formation, organisateur, date, lieu,
         objet, description) a partir d'une prestation. Le devis n'est pas
-        enregistre : c'est un point de depart, toujours modifiable avant
-        validation (meme philosophie que ContractService.build_from_prestation)."""
-        return Devis(
+        enregistré : c'est un point de depart, toujours modifiable avant
+        validation (meme philosophie que ContractService.build_from_prestation).
+
+        Sprint 20 : priorite a prestation.formation_id (vraie entite
+        Formation, avec son propre instantane complet - nom, adresse, SIRET,
+        IBAN...). Si la prestation est ancienne et ne porte que artist_id,
+        comportement historique preserve a l'identique (instantane depuis la
+        fiche Artiste) - compatibilite totale, aucune prestation existante
+        ne perd son pre-remplissage automatique."""
+        devis = Devis(
             prestation_id=prestation.id,
-            formation_id=prestation.artist_id,
+            formation_id=prestation.formation_id if prestation.formation_id is not None else prestation.artist_id,
             organization_id=prestation.organization_id,
             spectacle_nom=prestation.nom,
             prestation_date=prestation.date_debut,
@@ -58,6 +71,58 @@ class DevisService:
             prestation_city=prestation.lieu_city,
             comments=prestation.notes,
         )
+
+        if prestation.formation_id is not None:
+            self._apply_formation_snapshot(devis, prestation.formation_id)
+        elif prestation.artist_id is not None:
+            self._apply_artist_snapshot(devis, prestation.artist_id)
+
+        return devis
+
+    def _apply_formation_snapshot(self, devis: Devis, formation_id: int) -> None:
+        """Copie les informations de la vraie Formation dans l'instantane
+        formation_* du devis (meme principe que
+        ContractService._apply_formation_snapshot)."""
+        formation = self.formation_service.get_formation(formation_id)
+        if formation is None:
+            return
+
+        devis.formation_nom = formation.nom
+        devis.formation_adresse = formation.address
+        devis.formation_postal_code = formation.postal_code
+        devis.formation_city = formation.city
+        devis.formation_phone = formation.phone
+        devis.formation_email = formation.email
+        devis.formation_siret = formation.siret
+        devis.formation_ape = formation.ape
+        devis.formation_licence = formation.licence
+        devis.formation_iban = formation.iban
+        devis.formation_bic = formation.bic
+        devis.formation_notes = formation.description
+
+    def _apply_artist_snapshot(self, devis: Devis, artist_id: int) -> None:
+        """Comportement historique (avant l'entite Formation) : une
+        prestation ancienne ne porte que artist_id, l'instantane formation_*
+        du devis est alors repris de la fiche Artiste - inchange."""
+        artist = self.artist_service.get_artist(artist_id)
+        if artist is None:
+            return
+
+        devis.formation_nom = artist.stage_name or artist.legal_name
+        devis.formation_adresse = artist.address
+        devis.formation_postal_code = artist.postal_code
+        devis.formation_city = artist.city
+        devis.formation_phone = artist.phone
+        devis.formation_email = artist.email
+        devis.formation_site_internet = artist.site_internet
+        devis.formation_siren = artist.siren
+        devis.formation_siret = artist.siret
+        devis.formation_ape = artist.ape
+        devis.formation_licence = artist.licence
+        devis.formation_iban = artist.iban
+        devis.formation_bic = artist.bic
+        devis.formation_social_number = artist.social_number
+        devis.formation_notes = artist.notes
 
     def search_devis(self, query: str = "", status: str = "all") -> list[Devis]:
         normalized_query = query.strip().casefold()
@@ -128,7 +193,7 @@ class DevisService:
         path = Path(devis.docx_path or "")
 
         if not path.exists():
-            raise FileNotFoundError("Aucun document DOCX genere pour ce devis.")
+            raise FileNotFoundError("Aucun document DOCX généré pour ce devis.")
 
         self._open_path(path)
         return path
@@ -138,7 +203,7 @@ class DevisService:
         path = Path(devis.pdf_path or "")
 
         if not path.exists():
-            raise FileNotFoundError("Aucun PDF genere pour ce devis.")
+            raise FileNotFoundError("Aucun PDF généré pour ce devis.")
 
         self._open_path(path)
         return path
@@ -146,20 +211,20 @@ class DevisService:
     def preview(self, devis: Devis) -> str:
         self._prepare(devis)
         lines = [
-            f"Reference : {devis.devis_number or '(automatique)'}",
+            f"Référence : {devis.devis_number or '(automatique)'}",
             f"Producteur : {devis.producteur_nom or '-'}",
             f"Formation : {devis.formation_nom or '-'}",
             f"Organisateur : {devis.organisateur_structure or '-'}",
             f"Objet : {devis.spectacle_nom or '-'}",
             f"Date : {devis.prestation_date or '-'}",
             f"Lieu : {devis.prestation_lieu_complet or '-'}",
-            f"Duree : {devis.spectacle_duree or '-'}",
+            f"Durée : {devis.spectacle_duree or '-'}",
             f"Date de validite : {devis.date_validite or '-'}",
             f"Montant : {float(devis.montant or 0):.2f} EUR",
             f"Acompte : {float(devis.acompte or 0):.2f} EUR",
             f"TVA : {devis.tva or '-'}",
             f"Mode de paiement : {devis.mode_paiement or '-'}",
-            f"Echeance : {devis.echeance or '-'}",
+            f"Échéance : {devis.echeance or '-'}",
             f"Statut : {self.STATUSES.get(devis.status, devis.status)}",
         ]
 
@@ -259,7 +324,7 @@ class DevisService:
 
     def _apply_producteur_snapshot(self, devis: Devis) -> None:
         """Copie l'instantane du Producteur actif sur un NOUVEAU devis. Ne doit
-        jamais etre appele lors d'une modification : le devis existant conserve
+        jamais être appele lors d'une modification : le devis existant conserve
         les informations figees a sa creation, meme si la fiche Producteur change
         ensuite (meme principe que l'instantane des Contrats)."""
         if devis.producteur_id is not None:

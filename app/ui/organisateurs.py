@@ -31,7 +31,7 @@ class OrganisateursPage(QWidget):
         "Forme juridique",
         "SIRET",
         "Ville",
-        "Telephone",
+        "Téléphone",
         "Email",
         "President",
     )
@@ -121,7 +121,7 @@ class OrganisateursPage(QWidget):
         organization_id = self._selected_organization_id()
 
         if organization_id is None:
-            QMessageBox.information(self, "Modification", "Selectionnez un organisateur.")
+            QMessageBox.information(self, "Modification", "Sélectionnez un organisateur.")
             return
 
         organization = self.service.get_organization(organization_id)
@@ -146,7 +146,7 @@ class OrganisateursPage(QWidget):
         organization_id = self._selected_organization_id()
 
         if organization_id is None:
-            QMessageBox.information(self, "Suppression", "Selectionnez un organisateur.")
+            QMessageBox.information(self, "Suppression", "Sélectionnez un organisateur.")
             return
 
         organization = self.service.get_organization(organization_id)

@@ -25,6 +25,8 @@ class Producteur:
     representant: str = ""
     fonction: str = ""
 
+    convention_collective: str = ""
+
     logo_path: str = ""
     site_internet: str = ""
 
