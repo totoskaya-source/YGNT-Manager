@@ -104,6 +104,9 @@ class DashboardPage(QWidget):
         billing_card, self.billing_tiles = self._build_stats_card("Situation financière", BILLING_LABELS)
         layout.addWidget(billing_card)
 
+        documents_card, self.documents_layout = self._build_card("Documents")
+        layout.addWidget(documents_card)
+
         layout.addWidget(self._build_quick_actions_card())
 
         activity_card, self.activity_layout = self._build_card("Dernières activités")
@@ -227,6 +230,7 @@ class DashboardPage(QWidget):
         self._refresh_next_prestations(prestations)
         self._refresh_indicators(prestations, devis_list, contracts, factures, paiements)
         self._refresh_billing(factures)
+        self._refresh_documents(devis_list, contracts, factures, contrats_cddu)
         self._refresh_activity(prestations, devis_list, contracts, factures, paiements)
 
     def _refresh_greeting(self) -> None:
@@ -303,6 +307,50 @@ class DashboardPage(QWidget):
         self.billing_tiles["CA du mois"].setText(f"{stats_helper.ca_facture_du_mois(factures):.2f} EUR")
         self.billing_tiles["CA annuel"].setText(f"{stats_helper.ca_facture_annuel(factures):.2f} EUR")
         self.billing_tiles["Factures impayees"].setText(str(stats_helper.factures_impayees_count(factures)))
+
+    def _refresh_documents(
+        self,
+        devis_list: list[Any],
+        contracts: list[Any],
+        factures: list[Any],
+        contrats_cddu: list[Any],
+    ) -> None:
+        self._clear_layout(self.documents_layout)
+        entries = stats_helper.documents_a_generer(devis_list, contracts, factures, contrats_cddu)
+
+        if not entries:
+            empty_label = QLabel("Aucun document en attente de génération.")
+            style_muted_text(empty_label)
+            self.documents_layout.addWidget(empty_label)
+            return
+
+        max_shown = 8
+        for kind, document in entries[:max_shown]:
+            self.documents_layout.addWidget(QLabel(self._document_label(kind, document)))
+
+        remaining = len(entries) - max_shown
+        if remaining > 0:
+            more_label = QLabel(f"+ {remaining} autre(s)")
+            style_muted_text(more_label)
+            self.documents_layout.addWidget(more_label)
+
+    @staticmethod
+    def _document_label(kind: str, document: Any) -> str:
+        numbers = {
+            "Devis": lambda d: d.devis_number,
+            "Contrat": lambda d: d.contract_number,
+            "Facture": lambda d: d.facture_number,
+            "CDDU": lambda d: d.numero,
+        }
+        descriptions = {
+            "Devis": lambda d: d.spectacle_nom,
+            "Contrat": lambda d: d.spectacle_nom,
+            "Facture": lambda d: d.spectacle_nom,
+            "CDDU": lambda d: d.prestation_objet,
+        }
+        number = numbers[kind](document) or "(sans numéro)"
+        description = descriptions[kind](document) or ""
+        return " - ".join(part for part in (f"{kind} {number}", description) if part)
 
     def _refresh_activity(
         self,
