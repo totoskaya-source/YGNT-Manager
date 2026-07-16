@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from app.services import stats_helper
 from app.services.contract_service import ContractService
+from app.services.contrat_cddu_service import ContratCdduService
 from app.services.devis_service import DevisService
 from app.services.facture_service import FactureService
 from app.services.paiement_service import PaiementService
@@ -37,6 +38,7 @@ from app.ui.theme import (
 
 INDICATOR_LABELS = ("Prestations", "Devis", "Contrats", "Factures", "Paiements")
 BILLING_LABELS = ("CA facture", "CA encaisse", "Factures impayees", "Paiements en attente")
+ALERT_LABELS = ("Factures en retard", "Devis a relancer", "Prestations sans facture", "CDDU a preparer")
 
 
 class DashboardPage(QWidget):
@@ -55,6 +57,7 @@ class DashboardPage(QWidget):
         facture_service: FactureService | None = None,
         paiement_service: PaiementService | None = None,
         producteur_service: ProducteurService | None = None,
+        contrat_cddu_service: ContratCdduService | None = None,
     ) -> None:
         super().__init__()
 
@@ -64,6 +67,7 @@ class DashboardPage(QWidget):
         self.facture_service = facture_service or FactureService()
         self.paiement_service = paiement_service or PaiementService(facture_service=self.facture_service)
         self.producteur_service = producteur_service or ProducteurService()
+        self.contrat_cddu_service = contrat_cddu_service or ContratCdduService()
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -87,6 +91,9 @@ class DashboardPage(QWidget):
         self.greeting_label = QLabel()
         style_dashboard_greeting(self.greeting_label)
         layout.addWidget(self.greeting_label)
+
+        alerts_card, self.alert_tiles = self._build_stats_card("⚠ A traiter", ALERT_LABELS)
+        layout.addWidget(alerts_card)
 
         next_prestation_card, self.next_prestation_label = self._build_text_card("Prochaine prestation")
         layout.addWidget(next_prestation_card)
@@ -220,8 +227,10 @@ class DashboardPage(QWidget):
         contracts = self.contract_service.list_contracts()
         factures = self.facture_service.list_factures()
         paiements = self.paiement_service.list_paiements()
+        contrats_cddu = self.contrat_cddu_service.list_contrats()
 
         self._refresh_greeting()
+        self._refresh_alerts(prestations, devis_list, factures, contrats_cddu)
         self._refresh_next_prestation(prestations)
         self._refresh_indicators(prestations, devis_list, contracts, factures, paiements)
         self._refresh_billing(factures, paiements)
@@ -245,6 +254,24 @@ class DashboardPage(QWidget):
             return
 
         self.greeting_label.setText("Bienvenue sur YGNT Manager")
+
+    def _refresh_alerts(
+        self,
+        prestations: list[Any],
+        devis_list: list[Any],
+        factures: list[Any],
+        contrats_cddu: list[Any],
+    ) -> None:
+        # Chaque compteur reutilise une fonction pure de stats_helper : aucun
+        # calcul metier ici, uniquement la mise en forme du chiffre.
+        self.alert_tiles["Factures en retard"].setText(str(len(stats_helper.factures_en_retard(factures))))
+        self.alert_tiles["Devis a relancer"].setText(str(len(stats_helper.devis_expirant_bientot(devis_list))))
+        self.alert_tiles["Prestations sans facture"].setText(
+            str(len(stats_helper.prestations_sans_facture(prestations, factures)))
+        )
+        self.alert_tiles["CDDU a preparer"].setText(
+            str(len(stats_helper.cddu_a_preparer(prestations, contrats_cddu)))
+        )
 
     def _refresh_next_prestation(self, prestations: list[Any]) -> None:
         upcoming = stats_helper.upcoming_prestations(prestations, limit=1)
