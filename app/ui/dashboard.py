@@ -37,7 +37,7 @@ from app.ui.theme import (
 )
 
 INDICATOR_LABELS = ("Prestations", "Devis", "Contrats", "Factures", "Paiements")
-BILLING_LABELS = ("CA facture", "CA encaisse", "Factures impayees", "Paiements en attente")
+BILLING_LABELS = ("CA du mois", "CA annuel", "Factures impayees")
 ALERT_LABELS = ("Factures en retard", "Devis a relancer", "Prestations sans facture", "CDDU a preparer")
 
 
@@ -101,7 +101,7 @@ class DashboardPage(QWidget):
         indicators_card, self.indicator_tiles = self._build_stats_card("Indicateurs", INDICATOR_LABELS)
         layout.addWidget(indicators_card)
 
-        billing_card, self.billing_tiles = self._build_stats_card("Facturation", BILLING_LABELS)
+        billing_card, self.billing_tiles = self._build_stats_card("Situation financière", BILLING_LABELS)
         layout.addWidget(billing_card)
 
         layout.addWidget(self._build_quick_actions_card())
@@ -226,7 +226,7 @@ class DashboardPage(QWidget):
         self._refresh_alerts(prestations, devis_list, factures, contrats_cddu)
         self._refresh_next_prestations(prestations)
         self._refresh_indicators(prestations, devis_list, contracts, factures, paiements)
-        self._refresh_billing(factures, paiements)
+        self._refresh_billing(factures)
         self._refresh_activity(prestations, devis_list, contracts, factures, paiements)
 
     def _refresh_greeting(self) -> None:
@@ -295,13 +295,14 @@ class DashboardPage(QWidget):
         self.indicator_tiles["Factures"].setText(str(len(factures)))
         self.indicator_tiles["Paiements"].setText(str(len(paiements)))
 
-    def _refresh_billing(self, factures: list[Any], paiements: list[Any]) -> None:
-        # Calculs partages avec la page Statistiques (cf. app/services/stats_helper.py) :
-        # jamais recalcules deux fois.
-        self.billing_tiles["CA facture"].setText(f"{stats_helper.ca_facture(factures):.2f} EUR")
-        self.billing_tiles["CA encaisse"].setText(f"{stats_helper.ca_encaisse(paiements):.2f} EUR")
+    def _refresh_billing(self, factures: list[Any]) -> None:
+        # Vue synthetique et actionnable (v1.1) : CA du mois et de l'annee en
+        # cours plutot que le CA global depuis la creation de la base. Le
+        # detail complet (CA global, encaisse, paiements en attente...) reste
+        # disponible sur la page Statistiques - jamais recalcule deux fois.
+        self.billing_tiles["CA du mois"].setText(f"{stats_helper.ca_facture_du_mois(factures):.2f} EUR")
+        self.billing_tiles["CA annuel"].setText(f"{stats_helper.ca_facture_annuel(factures):.2f} EUR")
         self.billing_tiles["Factures impayees"].setText(str(stats_helper.factures_impayees_count(factures)))
-        self.billing_tiles["Paiements en attente"].setText(str(stats_helper.paiements_en_attente_count(paiements)))
 
     def _refresh_activity(
         self,
