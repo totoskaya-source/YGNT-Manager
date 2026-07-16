@@ -13,3 +13,7 @@ dist/
 # Installateur genere (voir ygnt_manager_setup.iss) - binaire volumineux,
 # jamais versionne, regenerable via la procedure documentee
 installer/
+
+# Archives de releases (installateurs .exe) - volumineux, deja publies sur
+# GitHub Releases, ne doivent plus etre versionnes dans le depot
+releases/
