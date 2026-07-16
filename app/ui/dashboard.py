@@ -95,8 +95,8 @@ class DashboardPage(QWidget):
         alerts_card, self.alert_tiles = self._build_stats_card("⚠ A traiter", ALERT_LABELS)
         layout.addWidget(alerts_card)
 
-        next_prestation_card, self.next_prestation_label = self._build_text_card("Prochaine prestation")
-        layout.addWidget(next_prestation_card)
+        next_prestations_card, self.next_prestations_layout = self._build_card("Prochaines prestations")
+        layout.addWidget(next_prestations_card)
 
         indicators_card, self.indicator_tiles = self._build_stats_card("Indicateurs", INDICATOR_LABELS)
         layout.addWidget(indicators_card)
@@ -121,13 +121,6 @@ class DashboardPage(QWidget):
         layout = QVBoxLayout(card)
         layout.setSpacing(8)
         return card, layout
-
-    def _build_text_card(self, title: str) -> tuple[QGroupBox, QLabel]:
-        card, layout = self._build_card(title)
-        label = QLabel()
-        label.setWordWrap(True)
-        layout.addWidget(label)
-        return card, label
 
     def _build_stats_card(self, title: str, labels: tuple[str, ...]) -> tuple[QGroupBox, dict[str, QLabel]]:
         card, layout = self._build_card(title)
@@ -231,7 +224,7 @@ class DashboardPage(QWidget):
 
         self._refresh_greeting()
         self._refresh_alerts(prestations, devis_list, factures, contrats_cddu)
-        self._refresh_next_prestation(prestations)
+        self._refresh_next_prestations(prestations)
         self._refresh_indicators(prestations, devis_list, contracts, factures, paiements)
         self._refresh_billing(factures, paiements)
         self._refresh_activity(prestations, devis_list, contracts, factures, paiements)
@@ -273,17 +266,20 @@ class DashboardPage(QWidget):
             str(len(stats_helper.cddu_a_preparer(prestations, contrats_cddu)))
         )
 
-    def _refresh_next_prestation(self, prestations: list[Any]) -> None:
-        upcoming = stats_helper.upcoming_prestations(prestations, limit=1)
+    def _refresh_next_prestations(self, prestations: list[Any]) -> None:
+        self._clear_layout(self.next_prestations_layout)
+        upcoming = stats_helper.upcoming_prestations(prestations, limit=5)
 
         if not upcoming:
-            self.next_prestation_label.setText("Aucune prestation planifiée.")
+            empty_label = QLabel("Aucune prestation planifiée.")
+            style_muted_text(empty_label)
+            self.next_prestations_layout.addWidget(empty_label)
             return
 
-        prestation = upcoming[0]
-        lieu = prestation.lieu_nom or prestation.lieu_city
-        details = " - ".join(part for part in (prestation.date_debut, prestation.nom, lieu) if part)
-        self.next_prestation_label.setText(details)
+        for prestation in upcoming:
+            lieu = prestation.lieu_nom or prestation.lieu_city
+            details = " - ".join(part for part in (prestation.date_debut, prestation.nom, lieu) if part)
+            self.next_prestations_layout.addWidget(QLabel(details))
 
     def _refresh_indicators(
         self,
