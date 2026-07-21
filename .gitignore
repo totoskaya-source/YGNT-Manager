@@ -1,6 +1,8 @@
 __pycache__/
 *.py[cod]
 .venv/
+.pytest_cache/
+web/backend/.env
 data/*.db
 data/*.db-*
 exports/

@@ -1,0 +1,117 @@
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+
+.app-header {
+  height: var(--header-height);
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-header__brand {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin-right: auto;
+}
+
+.app-header__menu-toggle {
+  display: none;
+  border: none;
+  background: transparent;
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+}
+
+.app-header__societe {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.app-header__user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.app-header__logout {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.7rem;
+}
+
+.app-header__logout:hover {
+  background: var(--color-bg);
+}
+
+/* Body: sidebar + content */
+
+.app-body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.app-sidebar {
+  width: var(--sidebar-width);
+  flex: 0 0 auto;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto;
+}
+
+.app-content {
+  flex: 1 1 auto;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+/* Responsive : sidebar en panneau escamotable sous 768px */
+
+@media (max-width: 768px) {
+  .app-header__menu-toggle {
+    display: inline-block;
+  }
+
+  .app-body {
+    position: relative;
+  }
+
+  .app-sidebar {
+    position: fixed;
+    top: var(--header-height);
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    z-index: 20;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .app-shell.sidebar-open .app-sidebar {
+    transform: translateX(0);
+  }
+
+  .app-shell.sidebar-open::after {
+    content: "";
+    position: fixed;
+    inset: var(--header-height) 0 0 0;
+    background: rgba(0, 0, 0, 0.25);
+    z-index: 10;
+  }
+
+  .app-header__societe {
+    display: none;
+  }
+}

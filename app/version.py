@@ -1,5 +1,5 @@
 APP_NAME = "YGNT Manager"
-APP_VERSION = "1.0.3"
+APP_VERSION = "1.0.4"
 APP_AUTHOR = "Anthony Zahn"
 APP_WEBSITE = ""
 APP_COPYRIGHT = "© 2026 YGNT Production. Tous droits reserves."

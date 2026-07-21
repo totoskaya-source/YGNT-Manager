@@ -4,6 +4,15 @@ Toutes les évolutions notables du logiciel sont consignées ici, par version.
 
 ---
 
+## [v1.0.4] - 2026-07-21
+
+### Ajouté
+- Affichage systématique du TOTAL TTC sur les factures, y compris pour les associations non assujetties à la TVA (TTC égal au HT dans ce cas).
+- Récapitulatif complet Total HT / TVA / TOTAL TTC sur le document de facture généré (DOCX et PDF).
+
+### Amélioré
+- Préparation de la future gestion de la TVA : le taux est désormais interprété à la génération du document, sans changement du modèle de données ni de la base.
+
 ## [v1.0.3] - 2026-07-16
 
 ### Corrigé
